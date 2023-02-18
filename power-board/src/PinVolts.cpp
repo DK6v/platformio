@@ -29,8 +29,9 @@ void PinVolts::setMode(uint8_t mode) {
 
 float PinVolts::read() {
 
-    float value = (float)analogRead(mPin);
+    (void)analogRead(mPin);
 
+    float value = (float)analogRead(mPin);
     return ((value * mVRef) / 1024) / (mR1 / (mR1 + mR2));
 }
 
