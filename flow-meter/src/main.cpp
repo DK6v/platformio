@@ -39,9 +39,8 @@ public:
 
 } // namespace fm
 
-// GPIO
-app::LedPin blueLed(PIN_D7);
-app::LedPin redLed(PIN_D8);
+app::LedPin setupLed(SETUP_LED, true);
+app::LedPin redLed(PIN_D3);
 
 // Settings
 struct Settings {
@@ -77,9 +76,7 @@ void setup() {
 
     WiFi.mode(WIFI_STA);
 
-    blueLed.setDimm(30);
     redLed.setDimm(30);
-    blueLed.blink();
     redLed.blink();
 
     sensors.search();
@@ -102,7 +99,6 @@ void setup() {
         hotWaterCounter = 10101;
         coldWaterCounter = 13692;
 
-        blueLed.blink();
         redLed.blink();
 
         sett.s[19] = '\0'; //add null terminator at the end cause overflow

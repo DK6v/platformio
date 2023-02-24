@@ -158,6 +158,7 @@ private:
 class LedPin : public BasePin {
 public:
     LedPin(uint8_t pin);
+    LedPin(uint8_t pin, bool inverted);
     ~LedPin() = default;
 
     void setDimm(uint8_t dimm);
@@ -169,6 +170,7 @@ public:
 private:
     uint8_t mDimm;
     uint64_t mLastMs;
+    bool mInverted;
 };
 
 class IntParameter : public WiFiManagerParameter {

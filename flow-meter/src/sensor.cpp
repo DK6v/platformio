@@ -197,16 +197,21 @@ void InputPin::onTimer() {
 
 // --------------------------------------------------------
 
-LedPin::LedPin(uint8_t pin):
-    BasePin(pin),
-    mDimm(0), mLastMs(0)
-{
+LedPin::LedPin(uint8_t pin)
+    : LedPin(pin, false) {
+}
+
+LedPin::LedPin(uint8_t pin, bool inverted)
+    : BasePin(pin),
+      mDimm(0), mLastMs(0), mInverted(inverted) {
+
     pinMode(pin, OUTPUT);
+    digitalWrite(pin, ((mInverted) ? HIGH : LOW));
 }
 
 void LedPin::on() const {
     if (mDimm == 0) {
-        digitalWrite(mPin, HIGH);
+        digitalWrite(mPin, ((mInverted) ? LOW : HIGH));
     } else {
         analogWrite(mPin, mDimm);
     }
@@ -214,7 +219,7 @@ void LedPin::on() const {
 
 void LedPin::off() const {
     if (mDimm == 0) {
-        digitalWrite(mPin, LOW);
+        digitalWrite(mPin, ((mInverted) ? HIGH : LOW));
     } else {
         analogWrite(mPin, 0);
     }
