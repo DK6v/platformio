@@ -5,7 +5,7 @@ namespace app {
 // --------------------------------------------------------
 
 DSSensorPin::DSSensorPin(uint8_t pin, Reporter& reporter):
-    BasePin(pin),
+    PinBase(pin),
     mOneWire(pin),
     mReporter(reporter),
     mSensors() {
@@ -96,7 +96,7 @@ InputPin::InputPin(uint8_t pin,
                    NonVolitileCounter& counter,
                    Reporter& reporter,
                    const char* name):
-    BasePin(pin),
+    PinBase(pin),
     mName(name),
     mReporter(reporter),
     mBucket(0),
@@ -193,58 +193,6 @@ void InputPin::sendMetric() {
 void InputPin::onTimer() {
 
     sendMetric();
-}
-
-// --------------------------------------------------------
-
-LedPin::LedPin(uint8_t pin)
-    : LedPin(pin, false) {
-}
-
-LedPin::LedPin(uint8_t pin, bool inverted)
-    : BasePin(pin),
-      mDimm(0), mLastMs(0), mInverted(inverted) {
-
-    pinMode(pin, OUTPUT);
-    digitalWrite(pin, ((mInverted) ? HIGH : LOW));
-}
-
-void LedPin::on() const {
-    if (mDimm == 0) {
-        digitalWrite(mPin, ((mInverted) ? LOW : HIGH));
-    } else {
-        analogWrite(mPin, mDimm);
-    }
-}
-
-void LedPin::off() const {
-    if (mDimm == 0) {
-        digitalWrite(mPin, ((mInverted) ? HIGH : LOW));
-    } else {
-        analogWrite(mPin, 0);
-    }
-}
-
-void LedPin::setDimm(uint8_t dimm) {
-    mDimm = dimm;
-}
-
-void LedPin::blink(unsigned long intervalMs) {
-
-    // Wait if several blinks in a row
-    uint64_t waitMs = millis() - mLastMs;
-    if (waitMs < intervalMs) {
-        delay(intervalMs - waitMs);
-    }
-
-    this->on();
-    delay(intervalMs);
-    this->off();
-    mLastMs = millis();
-}
-
-void LedPin::shortBlink() {
-    this->blink(5);
 }
 
 } // namespace fm

@@ -7,7 +7,7 @@
 #include <WiFiClient.h>
 
 #include "sensor.h"
-#include "reporter.h"
+#include "Reporter.h"
 
 namespace app {
 

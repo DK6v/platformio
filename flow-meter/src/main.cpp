@@ -8,22 +8,12 @@
 
 #include "TimerDispatcher.h"
 #include "sensor.h"
-#include "reporter.h"
+#include "Reporter.h"
 #include "NonVolitileCounter.h"
+#include "PinLed.h"
+#include "PinPzem.h"
 
 namespace app {
-
-class IPAddressParameter : public WiFiManagerParameter {
-public:
-    IPAddressParameter(const char *id, const char *placeholder, IPAddress address)
-        : WiFiManagerParameter("") {
-        init(id, placeholder, address.toString().c_str(), 16, "", WFM_LABEL_BEFORE);
-    }
-
-    bool getValue(IPAddress &ip) {
-        return ip.fromString(WiFiManagerParameter::getValue());
-    }
-};
 
 class FloatParameter : public WiFiManagerParameter {
 public:
@@ -39,23 +29,17 @@ public:
 
 } // namespace fm
 
-app::LedPin setupLed(SETUP_LED, true);
-app::LedPin redLed(PIN_D3);
+app::PinLed setupLed(SETUP_LED, true);
+app::PinLed redLed(PIN_D3);
 
 // Settings
 struct Settings {
-    float f;
-    int i;
-    char s[20];
-    uint32_t ip;
+    float pzemEnergy;
 } sett;
 
 WiFiManager wm;
 
 int intParam = 0;
-
-app::IntParameter param_int( "int", "param_int",  intParam);
-WiFiManagerParameter param_sep("<hr><br/>"); // separator
 
 app::TimerDispatcher td;
 
@@ -69,9 +53,30 @@ app::InputPin coldCounter(PIN_D5, coldWaterCounter, reporter, "cold");
 
 app::DSSensorPin sensors(PIN_D2, reporter);
 
+app::PinPzem pzem(reporter, &sett.pzemEnergy);
+
+SoftwareSerial debug(PIN_RX2, PIN_TX2);
+
+app::FloatParameter pzemEnergy( "float", "PZEM Energy (kWh)", sett.pzemEnergy);
+WiFiManagerParameter paramSeparator("<hr><br/>");
+
+void saveParamsCallback () {
+  
+    sett.pzemEnergy = pzemEnergy.getValue();
+
+    EEPROM.put(0, sett);
+    if (EEPROM.commit()) {
+        debug.println("Settings saved");
+    } else {
+        debug.println("EEPROM error");
+    }
+
+    pzem.resetMetric();
+}
+
 void setup() {
 
-    Serial.begin(115200);
+    debug.begin(115200);
     delay(1000);
 
     WiFi.mode(WIFI_STA);
@@ -86,79 +91,42 @@ void setup() {
     coldWaterCounter.init(13692);
 
     EEPROM.get(0, sett);
-    Serial.println("Settings loaded");
+    pzemEnergy.setValue(String(sett.pzemEnergy).c_str(), pzemEnergy.getValueLength());
+
+    debug.println("Settings loaded");
 
     pinMode(SETUP_PIN, INPUT_PULLUP);
     delay(1000);
 
+    wm.addParameter(&pzemEnergy);
+
     if (digitalRead(SETUP_PIN) == LOW) {
 
-        Serial.println("Setup pin is ON");
-        Serial.println("-- SETUP --");
+        debug.println("Setup pin is ON");
+        debug.println("-- SETUP --");
        
         hotWaterCounter = 10101;
         coldWaterCounter = 13692;
 
-        redLed.blink();
-
-        sett.s[19] = '\0'; //add null terminator at the end cause overflow
-        WiFiManagerParameter param_str( "str", "param_string",  sett.s, 20);
-        app::FloatParameter param_float( "float", "param_float",  sett.f);
-        app::IntParameter param_int( "int", "param_int",  sett.i);
-        WiFiManagerParameter param_sep("<hr><br/>"); // separator
-
-        IPAddress ip(sett.ip);
-        app::IPAddressParameter param_ip("ip", "param_ip", ip);
-
-        sensors.addParameters(wm);
-        
-        wm.addParameter( &param_str );
-        wm.addParameter( &param_float );
-        wm.addParameter( &param_sep );
-        wm.addParameter( &param_int );
-        wm.addParameter( &param_sep );
-        wm.addParameter( &param_ip );
-
         std::vector<const char *> menu = {"wifi","param","info","exit","sep","update"};
         wm.setMenu(menu); // custom menu, pass vector
 
-        //SSID & password parameters already included
         wm.startConfigPortal();
 
-        strncpy(sett.s, param_str.getValue(), 20);
-        sett.s[19] = '\0'; 
-        sett.f = param_float.getValue();
-        sett.i = param_int.getValue();
-
-        Serial.print("String param: ");
-        Serial.println(sett.s);
-        Serial.print("Float param: ");
-        Serial.println(sett.f);
-        Serial.print("Int param: ");
-        Serial.println(sett.i, DEC);
-        
-        if (param_ip.getValue(ip)) {
-            sett.ip = ip;
-
-            Serial.print("IP param: ");
-            Serial.println(ip);
-        } else {
-            Serial.println("Incorrect IP");
-        }
+        sett.pzemEnergy = pzemEnergy.getValue();
 
         EEPROM.put(0, sett);
         if (EEPROM.commit()) {
-            Serial.println("Settings saved");
+            debug.println("Settings saved");
         } else {
-            Serial.println("EEPROM error");
+            debug.println("EEPROM error");
         }
     } 
     else {
-        Serial.println("Setup pin is OFF");
-        Serial.println("-- WORK --");
+        debug.println("Setup pin is OFF");
+        debug.println("-- WORK --");
       
-        wm.addParameter( &param_int );
-        wm.addParameter( &param_sep );
+        wm.setSaveParamsCallback(saveParamsCallback);
 
         std::vector<const char *> menu = {"wifi", "param", "info", "exit"};
 
@@ -175,11 +143,15 @@ void setup() {
     td.startTimer(sensors,          (5  * app::MINUTES));
     td.startTimer(hotWaterCounter,  (15 * app::MINUTES));
     td.startTimer(coldWaterCounter, (15 * app::MINUTES));
+    td.startTimer(pzem,             (5  * app::MINUTES));
 
-    Serial.print("Water counters, cold=");
-    Serial.print(coldWaterCounter);
-    Serial.print(", hot=");
-    Serial.println(hotWaterCounter);
+    debug.print("Water counters, cold=");
+    debug.print(coldWaterCounter);
+    debug.print(", hot=");
+    debug.println(hotWaterCounter);
+
+    redLed.blink();
+    redLed.blink();
 }
 
 #define TICK_MS (10)
