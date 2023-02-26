@@ -5,8 +5,6 @@
 
 namespace app {
 
-// -------------------------------------------------------
-
 PinPzem::PinPzem(Reporter& reporter, float energyBase)
     : mReporter(reporter),
       mSerial(UART0),
@@ -41,7 +39,7 @@ void PinPzem::sendMetric() {
         std::stringstream ss;
 
         ss << std::fixed
-           << "test,sensor=pzem"
+           << "watt-meter,sensor=pzem"
            << " voltage="   << std::setprecision(1) << voltage
            << ",current="   << std::setprecision(3) << current
            << ",frequency=" << std::setprecision(1) << frequency
