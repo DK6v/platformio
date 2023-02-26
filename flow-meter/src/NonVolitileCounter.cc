@@ -50,7 +50,7 @@ void NonVolitileCounter::init(uint32_t value) {
     }
 }
 
-NonVolitileCounter& NonVolitileCounter::operator++() {
+NonVolitileCounter & NonVolitileCounter::operator++() {
 
     ++mCounter;
 
@@ -94,6 +94,12 @@ void NonVolitileCounter::onTimer() {
         EEPROM.commit();
         mCommitRequired = false;
     }
+}
+
+NonVolitileCounter & operator+=(NonVolitileCounter & counter, const uint32_t & value) {
+
+    counter = counter + value;
+    return counter;
 }
 
 } // namespace app

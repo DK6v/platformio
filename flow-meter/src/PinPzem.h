@@ -14,7 +14,7 @@ namespace app {
 
 class PinPzem : public TimerListener {
 public:
-    PinPzem(Reporter& reporter, float *energyCorrection_p);
+    PinPzem(Reporter& reporter, float energyBase);
     ~PinPzem() = default;
 
     operator PZEM004Tv30() { return mPzem; }
@@ -23,7 +23,9 @@ public:
     void onTimer();
 
     void sendMetric();
-    void resetMetric();
+    
+    float getValue();
+    void setValue(float value);
 
 private:
     Reporter& mReporter;
@@ -31,10 +33,9 @@ private:
     HardwareSerial mSerial;
     PZEM004Tv30 mPzem;
 
-    float mEnergy;
-    bool mEnergyReset;
-    float *mEnergyCorrection_p;  
-
+    float mEnergyBase;
+    float mEnergySensor;
+    
     secs mLastReportTime;
 };
 

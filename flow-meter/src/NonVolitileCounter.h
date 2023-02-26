@@ -38,4 +38,6 @@ protected:
     uint32_t mCurrentSlotAddr;
 };
 
+NonVolitileCounter & operator+=(NonVolitileCounter & counter, const uint32_t & value);
+
 } // namespace app

@@ -7,13 +7,12 @@ namespace app {
 
 // -------------------------------------------------------
 
-PinPzem::PinPzem(Reporter& reporter, float *energyCorrection_p)
+PinPzem::PinPzem(Reporter& reporter, float energyBase)
     : mReporter(reporter),
       mSerial(UART0),
       mPzem(mSerial),
-      mEnergy(0.0),
-      mEnergyReset(false),
-      mEnergyCorrection_p(energyCorrection_p),
+      mEnergyBase(energyBase),
+      mEnergySensor(0.0),
       mLastReportTime(app::TIME_INVALID) {
     
     mSerial.begin(9600);
@@ -26,10 +25,6 @@ void PinPzem::onTimer() {
 void PinPzem::sendMetric() {
 
     secs currentTime = millis() / app::SECONDS;
-
-    if (mEnergyReset) {
-        mPzem.resetEnergy();
-    }
 
     float voltage = mPzem.voltage();
     float current = mPzem.current();
@@ -51,23 +46,29 @@ void PinPzem::sendMetric() {
            << ",current="   << std::setprecision(3) << current
            << ",frequency=" << std::setprecision(1) << frequency
            << ",power="     << std::setprecision(2) << power
-           << ",energy="    << std::setprecision(3) << (*mEnergyCorrection_p + energy);
+           << ",energy="    << std::setprecision(3) << (mEnergyBase + energy);
  
-        if ((mEnergy != 0.0) && (mLastReportTime != app::TIME_INVALID)) {
+        if ((mEnergySensor != 0.0) && (mLastReportTime != app::TIME_INVALID)) {
         
-            ss << ",delta="    << std::setprecision(3) << (energy - mEnergy)
+            ss << ",delta="    << std::setprecision(3) << (energy - mEnergySensor)
                << ",duration=" << std::setprecision(3) << (currentTime - mLastReportTime);
         }
  
         mReporter.send(ss.str());
     }
 
-    mEnergy = energy;
+    mEnergySensor = energy;
     mLastReportTime = currentTime;
 }
 
-void PinPzem::resetMetric() {
-    mEnergyReset = true;
+float PinPzem::getValue() {
+    return mEnergyBase;
+}
+
+void PinPzem::setValue(float value) {
+
+    mEnergyBase = value;
+    mPzem.resetEnergy();
 }
 
 } // namespace app 

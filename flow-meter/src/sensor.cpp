@@ -1,5 +1,7 @@
 #include "sensor.h"
 
+#include "WmConfig.h"
+
 namespace app {
 
 // --------------------------------------------------------
@@ -88,111 +90,6 @@ void DSSensorPin::send(Reporter& reporter) {
 void DSSensorPin::onTimer() {
     read();
     send(mReporter);
-}
-
-// ------------------------------------------------------------
-
-InputPin::InputPin(uint8_t pin,
-                   NonVolitileCounter& counter,
-                   Reporter& reporter,
-                   const char* name):
-    PinBase(pin),
-    mName(name),
-    mReporter(reporter),
-    mBucket(0),
-    mTotal(counter) {
-    
-    pinMode(pin, INPUT);
-
-    mLastState = digitalRead(mPin);
-    mLastCheckMs = millis();
-}
-
-void InputPin::attach(VoidCallbackPtr callback) const {
-    pinMode(mPin, INPUT);
-    attachInterrupt(mPin, callback, ONLOW);
-}
-
-void InputPin::process() {
-    
-    pinMode(mPin, INPUT);
-
-    msec currentTimeMs = millis();
-
-    if (mLastCheckMs < (currentTimeMs - 1000)) {
-
-        if ((mLastState == LOW) && (digitalRead(mPin) == HIGH)) {
-
-            mLastState = HIGH;
-
-            ++mBucket;
-            ++mTotal;
-        }
-        else if ((mLastState == HIGH) && (digitalRead(mPin) == LOW)) {
-
-            mLastState = LOW;
-        }
-
-        mLastCheckMs = currentTimeMs;
-    }
-}
-
-uint32_t InputPin::total() const {
-    return mTotal;
-}
-
-bool InputPin::InputPin::empty() const {
-    return (mBucket == 0);
-}
-
-void InputPin::reset() {
-    mBucket = 0;
-}
-
-InputPin::operator uint32_t() const {
-    return mBucket;
-}
-
-InputPin& InputPin::operator++() {
-    ++mBucket;
-    return *this;
-}
-
-InputPin& InputPin::operator--() {
-    if (mBucket != 0) {
-        --mBucket;
-    };
-    return *this;
-}
-
-void InputPin::onInterrupt() {
-    
-    msec currentTimeMs = millis();
-    
-    if (mLastCheckMs < (currentTimeMs - 20)) {
-        ++mBucket;
-        ++mTotal;
-    }
-    mLastCheckMs = currentTimeMs;
-}
-
-void InputPin::sendMetric() {
-
-    if (mBucket != 0) {
-
-        std::string metric = "water,sensor=" + std::string(mName)
-                           + " count=" + std::to_string(mBucket * 10)
-                           + ",total=" + std::to_string(mTotal * 10);
-
-        if (0 != mReporter.send(metric)) {
-            mBucket = 0;
-        }
-    }
-}
-
-void InputPin::onTimer() {
-
-    sendMetric();
 }
 
 } // namespace fm
