@@ -16,6 +16,10 @@ PinPzem::PinPzem(Reporter& reporter, float energyBase)
     mSerial.begin(9600);
 }
 
+void PinPzem::init(float value) {
+    mEnergyBase = value;
+}
+
 void PinPzem::onTimer() {
     sendMetric();
 }

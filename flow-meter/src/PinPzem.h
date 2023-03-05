@@ -17,6 +17,8 @@ public:
     PinPzem(Reporter& reporter, float energyBase);
     ~PinPzem() = default;
 
+    void init(float value);
+
     operator PZEM004Tv30() { return mPzem; }
 
     // Inplement TimerListener

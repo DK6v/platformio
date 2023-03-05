@@ -99,6 +99,7 @@ void setup() {
     // Initialize non-volitile counters
     coldWaterCounter.init(settings.coldWaterCounter);
     hotWaterCounter.init(settings.hotWaterCounter);
+    pzem.init(settings.pzemEnergy);
 
     // WifiManager parameters
     paramPzemEnergy.setValue(String(settings.pzemEnergy).c_str(),
