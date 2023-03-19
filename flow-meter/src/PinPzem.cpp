@@ -7,7 +7,7 @@ namespace app {
 
 PinPzem::PinPzem(Reporter& reporter, float energyBase)
     : mReporter(reporter),
-      mSerial(UART0),
+      mSerial(PIN_D7, PIN_D2),
       mPzem(mSerial),
       mEnergyBase(energyBase),
       mEnergySensor(0.0),

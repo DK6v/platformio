@@ -1,43 +1,38 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
-#include "PZEM004Tv30.h"
 
 #include "TimerDispatcher.h"
 #include "Reporter.h"
 #include "PinBase.h"
+#include "PinOut.h"
+
+#include "Pulsar.h"
 
 namespace app {
 
 // -------------------------------------------------------
 
-class PinPzem : public TimerListener {
+class PinPulsar : public TimerListener {
 public:
-    PinPzem(Reporter& reporter, float energyBase);
-    ~PinPzem() = default;
+    PinPulsar(Reporter& reporter, PinOut& power);
+    ~PinPulsar() = default;
 
-    void init(float value);
-
-    operator PZEM004Tv30() { return mPzem; }
+    operator Pulsar() { return mPulsar; }
 
     // Inplement TimerListener
     void onTimer();
 
     void sendMetric();
     
-    float getValue();
-    void setValue(float value);
-
 private:
     Reporter& mReporter;
+    PinOut& mPower;
 
     SoftwareSerial mSerial;
-    PZEM004Tv30 mPzem;
+    Pulsar mPulsar;
 
-    float mEnergyBase;
-    float mEnergySensor;
-    
+    float mLastHeatEnergy;
     secs mLastReportTime;
 };
 

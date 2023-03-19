@@ -12,11 +12,24 @@
 #include "NonVolitileCounter.h"
 #include "PinLed.h"
 #include "PinPzem.h"
+#include "PinPulsar.h"
 #include "PinCounter.h"
 #include "WmConfig.h"
 
-app::PinLed setupLed(SETUP_LED, true);
+/*
+ * D0
+ * D1   RX_2
+ * D2   TX_2
+ * D3   red led             boot fails if pulled LOW
+ * D4   dallas sendors      boot fails if pulled LOW
+ * D5   counter (cold)
+ * D6   counter (hot)
+ * D7          
+ * D8                       fails if pulled HIGH          
+ */
+
 app::PinLed redLed(PIN_D3);
+app::PinOut pulsarPowerPin(PIN_D8);
 
 // Settings
 struct Settings {
@@ -24,8 +37,6 @@ struct Settings {
     long coldWaterCounter;
     long hotWaterCounter;
 };
-
-SoftwareSerial debug(PIN_RX2, PIN_TX2);
 
 WiFiManager wm;
 Settings settings = {0};
@@ -40,9 +51,10 @@ app::NonVolitileCounter coldWaterCounter(256, 30);
 app::PinCounter hotCounter(PIN_D6, hotWaterCounter, reporter, "hot", 10);
 app::PinCounter coldCounter(PIN_D5, coldWaterCounter, reporter, "cold", 10);
 
-app::DSSensorPin sensors(PIN_D2, reporter);
+app::DSSensorPin sensors(PIN_D4, reporter);
 
 app::PinPzem pzem(reporter, settings.pzemEnergy);
+app::PinPulsar pulsar(reporter, pulsarPowerPin);
 
 app::FloatParameter paramPzemEnergy("pzem_energy", "PZEM Energy (kWh)", 0.0);
 app::IntParameter paramColdWaterCounter("cold_counter", "Cold Water Counter (L)", 0);
@@ -58,9 +70,9 @@ void saveParamsCallback () {
 
     EEPROM.put(0, settings);
     if (EEPROM.commit()) {
-        debug.println("Settings saved");
+        Serial.println("Settings saved");
     } else {
-        debug.println("EEPROM error");
+        Serial.println("EEPROM error");
     }
 
     if (oldSettings.pzemEnergy != settings.pzemEnergy) {
@@ -78,7 +90,7 @@ void saveParamsCallback () {
 
 void setup() {
 
-    debug.begin(115200);
+    Serial.begin(115200);
     delay(1000);
 
     WiFi.mode(WIFI_STA);
@@ -94,7 +106,7 @@ void setup() {
     // Read EEPROM settings
     EEPROM.begin(512);
     EEPROM.get(0, settings);
-    debug.println("Settings loaded");
+    Serial.println("Settings loaded");
 
     // Initialize non-volitile counters
     coldWaterCounter.init(settings.coldWaterCounter);
@@ -117,8 +129,8 @@ void setup() {
 
     if (digitalRead(SETUP_PIN) == LOW) {
 
-        debug.println("Setup pin is ON");
-        debug.println("-- SETUP --");
+        Serial.println("Setup pin is ON");
+        Serial.println("-- SETUP --");
        
         std::vector<const char*> menu = {"wifi", "param", "info", "exit", "sep", "update"};
         wm.setMenu(menu);
@@ -131,14 +143,14 @@ void setup() {
 
         EEPROM.put(0, settings);
         if (EEPROM.commit()) {
-            debug.println("Settings saved");
+            Serial.println("Settings saved");
         } else {
-            debug.println("EEPROM error");
+            Serial.println("EEPROM error");
         }
     } 
     else {
-        debug.println("Setup pin is OFF");
-        debug.println("-- WORK --");
+        Serial.println("Setup pin is OFF");
+        Serial.println("-- WORK --");
       
         wm.setSaveParamsCallback(saveParamsCallback);
 
@@ -158,11 +170,12 @@ void setup() {
     td.startTimer(hotWaterCounter,  (15 * app::MINUTES));
     td.startTimer(coldWaterCounter, (15 * app::MINUTES));
     td.startTimer(pzem,             (5  * app::MINUTES));
+    td.startTimer(pulsar,           (5  * app::MINUTES));
 
-    debug.print("Water counters, cold=");
-    debug.print(coldWaterCounter);
-    debug.print(", hot=");
-    debug.println(hotWaterCounter);
+    Serial.print("Water counters, cold=");
+    Serial.print(coldWaterCounter);
+    Serial.print(", hot=");
+    Serial.println(hotWaterCounter);
 
     redLed.blink();
     redLed.blink();
