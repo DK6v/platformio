@@ -13,7 +13,7 @@ public:
 
     void setMode(uint8_t mode);
 
-    float read();
+    float read(uint8_t attempts = 1);
 
 private:
     float mR1, mR2;

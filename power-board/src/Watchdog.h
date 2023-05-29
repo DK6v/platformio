@@ -26,7 +26,8 @@ public:
   }
 
 public:  
-  void calibrate();
+  void calibrate(secs calibrationIntervalSecs = Watchdog::CALIBRATION_INTERVAL);
+
   void onInterruptEvent();
 
   void delay(secs interval);
@@ -35,8 +36,8 @@ public:
   void reset();
 
 public:
-  static const signed int MSEC_IN_SECOND       = 1000U;
-  static const signed int CALIBRATION_INTERVAL = 2U;
+  static const signed int MSEC_IN_SECOND       = 1000;
+  static const signed int CALIBRATION_INTERVAL = 60;
 
   static const uint8_t WDTCR_8S    = bit(WDP3) | bit(WDP0);
   static const uint8_t WDTCR_4S    = bit(WDP3);
@@ -50,7 +51,7 @@ public:
   static const uint8_t WDTCR_16MS  = 0;
 
 private:
-  msec mCalibrateMsecs;
+  msec mCalibrationFactorMsecs;
   
   volatile bool mInterruptReceived;
 };

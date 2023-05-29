@@ -10,33 +10,26 @@ volatile bool interruptReceived = true;
 
 namespace app {
 
-  Watchdog::Watchdog() : 
-    mCalibrateMsecs(0) {
-
-    // wdt_reset();
-    // wdt_disable();
+  Watchdog::Watchdog()
+    : mCalibrationFactorMsecs(-200) {
   }
 
   void Watchdog::onInterruptEvent() {
       mInterruptReceived = true;
-
-      // wdt_reset();
-      // wdt_disable();
   }
 
-  void Watchdog::calibrate() {
+  void Watchdog::calibrate(secs calibrationIntervalSecs) {
       auto startMs = millis();
-      this->delay(Watchdog::CALIBRATION_INTERVAL);
+      this->delay(calibrationIntervalSecs);
 
-      mCalibrateMsecs = 
-        (-1) * ((static_cast<msec>(millis() - startMs) -
-                 Watchdog::CALIBRATION_INTERVAL * Watchdog::MSEC_IN_SECOND) /
-                (Watchdog::CALIBRATION_INTERVAL));
+      mCalibrationFactorMsecs = 
+        (-1) * ((static_cast<msec>(millis() - startMs) - calibrationIntervalSecs * Watchdog::MSEC_IN_SECOND) /
+                (calibrationIntervalSecs));
   }
 
   void Watchdog::sleep(secs interval) {
 
-      secs cycles = interval + (interval * mCalibrateMsecs) / Watchdog::MSEC_IN_SECOND;
+      secs cycles = interval + (interval * mCalibrationFactorMsecs) / Watchdog::MSEC_IN_SECOND;
 
       // Allow system sleep and set sleep mode
       set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -79,7 +72,7 @@ namespace app {
 
   void Watchdog::delay(secs interval) {
        
-    secs cycles = interval + (interval * mCalibrateMsecs) / Watchdog::MSEC_IN_SECOND;
+    secs cycles = interval + (interval * mCalibrationFactorMsecs) / Watchdog::MSEC_IN_SECOND;
    
     MCUSR &= ~(bit(WDRF));
     WDTCR |= bit(WDCE) | bit(WDE);

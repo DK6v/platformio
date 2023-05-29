@@ -38,7 +38,7 @@ void onEvent(int size) {
 
 void onRequest() {
 
-  uint16_t batteryVolts = (uint16_t)(batteryPin.read() * 100);
+  uint16_t batteryVolts = (uint16_t)(batteryPin.read(9) * 100);
 
   Wire.write(HIGH_BYTE(batteryVolts));
   Wire.write(LOW_BYTE(batteryVolts));
@@ -47,11 +47,13 @@ void onRequest() {
 void setup() {
 
   app::Watchdog& wd = app::Watchdog::getInstance();
-  wd.calibrate(); 
+  // wd.calibrate();
 
   Wire.begin(0x0A);
   Wire.onReceive(onEvent);
   Wire.onRequest(onRequest);
+
+  delay(2000);
 }
 
 void loop() {
