@@ -8,13 +8,11 @@
 #include "PinBme280.h"
 
 WiFiManager wm;
-app::Reporter reporter("192.168.0.5", 42002);
+app::Reporter reporter("192.168.0.5", 42001);
 
 app::PinBme280 bme(PIN_SDA, PIN_SCL);
 
 void setup() {
-
-  delay(1000);
 
   Wire.begin(PIN_SDA, PIN_SCL);
 
@@ -48,10 +46,14 @@ void setup() {
   // Send report
   wm.autoConnect();
   reporter.send("weather,sensor=bme280"
-                  " temp="     + std::to_string(bme.temperature) +
-                  ",pressure=" + std::to_string(bme.pressure) +
-                  ",humidity=" + std::to_string(bme.humidity) +
-                  ",battery="  + std::to_string(battaryVolts));
+                " temp="     + std::to_string(bme.temperature) +
+                ",pressure=" + std::to_string(bme.pressure) +
+                ",humidity=" + std::to_string(bme.humidity) +
+                ",battery="  + std::to_string(battaryVolts));
+
+  if (WiFi.isConnected()) {
+    WiFi.disconnect(true);
+  }
 }
 
 void loop() {  
