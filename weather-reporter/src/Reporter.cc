@@ -25,7 +25,11 @@ size_t Reporter::send(std::string metric) {
     size_t bytesSent = 0;
 
     if (0 != client.connect(mHost.c_str(), mPort)) {
-        bytesSent += client.printf(metric.c_str());
+        
+        client.setNoDelay(true);
+        
+        bytesSent = client.printf(metric.c_str());       
+        
         client.flush();
         client.stop();
     }
