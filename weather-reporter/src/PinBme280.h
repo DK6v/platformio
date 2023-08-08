@@ -25,17 +25,17 @@ public:
 
     bool available() const;
 
-public:
-    float temperature;
-    float pressure;
-    float humidity;
-
 protected:
     uint8_t mSdaPin;
     uint8_t mSclPin;
 
     bool mAvailable;
     Adafruit_BME280 mSensor;
+
+public:
+    float temperature;
+    float pressure;
+    float humidity;
 };
 
 } // namespace fm

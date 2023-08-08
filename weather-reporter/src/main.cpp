@@ -32,7 +32,8 @@ void setup() {
     Wire.beginTransmission(I2C_ADDR);
     Wire.requestFrom(I2C_ADDR, 2);
 
-    float battaryVolts = 0.0;
+    // Read battary voltage
+    float battaryVolts = NAN;
     for (uint8_t wait = 30; wait != 0; --wait, delay(100)) {
     
         if (Wire.available() >= 2) {
@@ -45,11 +46,15 @@ void setup() {
     Wire.endTransmission();
 
     // Read measurements
-    Wire.beginTransmission(0x76);
-    uint8_t rc = Wire.endTransmission();
-    if (rc == 0) {
-        bme.begin(0x76);
-        bme.read();
+    for (uint8_t wait = 30; wait != 0; --wait, delay(100)) {
+    
+      Wire.beginTransmission(0x76);
+      uint8_t rc = Wire.endTransmission();
+      if (rc == 0) {
+          bme.begin(0x76);
+          bme.read();
+          break;
+      }
     }
     
     // Send report
@@ -57,16 +62,15 @@ void setup() {
   
     currentTime = timeRfc868.getCurrentTime();
     if (currentTime != 0) { 
-        currentTime -= 2208988800; // convert to epoch time
+        currentTime -= 2208988800; // Convert to epoch (1900 -> 1970)
     }
 
-    reporter.send(REPORT_NAME ",sensor=bme280"
-                  " temp="     + std::to_string(bme.temperature) +
-                  ",pressure=" + std::to_string(bme.pressure) +
-                  ",humidity=" + std::to_string(bme.humidity) +
-                  ",battery="  + std::to_string(battaryVolts) +
-                  ((currentTime == 0) ? "" :
-                   (",timestamp=" + std::to_string(currentTime))));
+    reporter.send(REPORT_NAME ",sensor=bme280 " +
+      (std::isnan(bme.temperature) ? "" : ("temp=" + std::to_string(bme.temperature) + ",")) +
+      (std::isnan(bme.pressure)    ? "" : ("pressure=" + std::to_string(bme.pressure) + ",")) +
+      (std::isnan(bme.humidity)    ? "" : ("humidity=" + std::to_string(bme.humidity) + ",")) +
+      (std::isnan(battaryVolts)    ? "" : ("battery="  + std::to_string(battaryVolts) + ",")) +
+      ((currentTime == 0)          ? "" : ("timestamp=" + std::to_string(currentTime) + ",")));
 
   if (WiFi.isConnected()) {
     WiFi.disconnect(false);

@@ -6,20 +6,17 @@ namespace app {
 
 // -------------------------------------------------------
 
-PinBme280::PinBme280(uint8_t sda, uint8_t scl) :
-    mSdaPin(sda),
-    mSclPin(scl),
-    temperature(0.0),
-    pressure(0.0),
-    humidity(0.0),
-    mAvailable(false) {
+PinBme280::PinBme280(uint8_t sda, uint8_t scl)
+    : mSdaPin(sda),
+      mSclPin(scl),
+      mAvailable(false),
+      temperature(NAN),
+      pressure(NAN),
+      humidity(NAN) {
 }
 
 bool PinBme280::begin(uint8_t address) {
 
-#ifndef ESP32
-    Wire.pins(mSdaPin, mSclPin);
-#endif
     Wire.begin(mSdaPin, mSclPin);
 
     delay(1000);
