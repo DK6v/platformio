@@ -24,13 +24,13 @@ size_t Reporter::send(std::string metric) {
     WiFiClient client;
     size_t bytesSent = 0;
 
+    client.setDefaultSync(true);
+
     if (0 != client.connect(mHost.c_str(), mPort)) {
         
-        client.setNoDelay(true);
-        
-        bytesSent = client.printf(metric.c_str());       
-        
-        client.flush();
+        bytesSent = client.printf(metric.c_str());      
+        client.flush(3000 /* ms */);
+
         client.stop();
     }
 

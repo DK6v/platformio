@@ -24,11 +24,13 @@ unsigned int TimeRFC868::getCurrentTime() {
     WiFiClient client;
     unsigned int currentTime = 0;
 
-
     if (0 != client.connect(mHost.c_str(), mPort)) {
         
+        client.printf("HELLO");
+        client.flush(3000 /* ms */);
+
         unsigned int wait = 30;
-        while((wait--) != 0) {   
+        while((wait--) != 0) {
 
             if (client.available() >= 4) {
 

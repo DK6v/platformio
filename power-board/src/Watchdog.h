@@ -71,7 +71,7 @@ public:
   static const uint8_t WDTCR_16MS   = 0;
 
 private:
-  usec_t mCalibrationFactor;
+  usec_t mCalibrationFactorUs;
   
   volatile bool mInterruptReceived;
 };

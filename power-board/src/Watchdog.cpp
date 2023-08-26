@@ -11,7 +11,7 @@ volatile bool interruptReceived = true;
 namespace app {
 
   Watchdog::Watchdog()
-      : mCalibrationFactor(0L) {
+      : mCalibrationFactorUs(0L) {
   }
 
   void Watchdog::onInterruptEvent() {
@@ -22,7 +22,7 @@ namespace app {
       auto startMs = millis();
       this->delay(calibrationInterval);
 
-      mCalibrationFactor = 
+      mCalibrationFactorUs = 
         (-1L) * ((static_cast<msec_t>(millis() - startMs) - calibrationInterval * MSEC) /
                  calibrationInterval);
   }
@@ -31,53 +31,71 @@ namespace app {
     
       if (drift != 0) {
 
-          if ((interval / abs(drift)) < 10 ) {
-              setCalibration(rcopysign(10000L /* 10 ms per second */, drift)); 
+          /* drift >10% => 10 ms per second (1%) */
+          if ((interval / abs(drift)) < 10) {
+              setCalibration(rcopysign(10000L /* us */, drift)); 
           }
-          else if ((interval / abs(drift)) < 50 ) {
-              setCalibration(rcopysign(5000L /* 5 ms per second */, drift));
+          /* drift >5% => 5 ms per second (0.5%) */
+          else if ((interval / abs(drift)) < 20 ) {
+              setCalibration(rcopysign(5000L /* us */, drift));
           }
+          /* drift >2.5% => 2.5 ms per second (0.25%) */
+          else if ((interval / abs(drift)) < 40 ) {
+              setCalibration(rcopysign(2500L /* us */, drift));
+          }
+          /* drift >1% => 1 ms per second (0.1%) */
           else if ((interval / abs(drift)) < 100 ) {
-              setCalibration(rcopysign(1000L /* 1 ms per second */, drift));
+              setCalibration(rcopysign(1000L /* us */, drift));
           }
+          /* drift >0.5% => 0.5 ms per second (0.05%) */
+          else if ((interval / abs(drift)) < 200 ) {
+              setCalibration(rcopysign(500L /* us */, drift));
+          }
+          /* drift >0.25% => 0.25 ms per second (0.025%) */
+          else if ((interval / abs(drift)) < 400 ) {
+              setCalibration(rcopysign(250L /* us */, drift));
+          }
+          /* drift >0.125% => 0.125 ms per second (0.0125%) */
+          else if ((interval / abs(drift)) < 800 ) {
+              setCalibration(rcopysign(125L /* us */, drift));
+          }
+          /* drift <0.125% => 0.05 ms per second (0.005%) */
           else {
-              setCalibration(rcopysign(250L /* 1/4 ms per second */, drift)); 
+              setCalibration(rcopysign(50L /* us */, drift)); 
           } 
       }
   }
 
   void Watchdog::resetCalibration() {
-      mCalibrationFactor = 0L;
+      mCalibrationFactorUs = 0L;
   }
 
   Watchdog::usec_t Watchdog::getCalibration() const {
-      return mCalibrationFactor;
+      return mCalibrationFactorUs;
   }
 
   void Watchdog::setCalibration(usec_t factor) {
-      this->mCalibrationFactor += factor;
+      this->mCalibrationFactorUs += factor;
   }
 
   void Watchdog::sleep(secs_t interval) const {
 
-    msec_t cycles =
-      ((interval * MSEC) +
-       (interval * (mCalibrationFactor / CAL_UNIT)) / (MSEC / CAL_UNIT));
+    msec_t cyclesMs = (interval * MSEC) + (interval * mCalibrationFactorUs) / MSEC;
 
-    cycles = cycles - cycles % 250; /* msec */
+    cyclesMs = cyclesMs - cyclesMs % 250; /* msec */
 
     // Allow system sleep and set sleep mode
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);     
 
-    while (cycles > 0) {
+    while (cyclesMs > 0) {
 
       uint8_t wdtcrBits = 0;
-      if      (cycles >= 8000) { cycles -= 8000; wdtcrBits = Watchdog::WDTCR_8S; }
-      else if (cycles >= 4000) { cycles -= 4000; wdtcrBits = Watchdog::WDTCR_4S; }
-      else if (cycles >= 2000) { cycles -= 2000; wdtcrBits = Watchdog::WDTCR_2S; }
-      else if (cycles >= 1000) { cycles -= 1000; wdtcrBits = Watchdog::WDTCR_1S; }
-      else if (cycles >= 500)  { cycles -= 500;  wdtcrBits = Watchdog::WDTCR_500MS; }
-      else                     { cycles -= 250;  wdtcrBits = Watchdog::WDTCR_250MS; }
+      if      (cyclesMs >= 8000) { cyclesMs -= 8000; wdtcrBits = Watchdog::WDTCR_8S; }
+      else if (cyclesMs >= 4000) { cyclesMs -= 4000; wdtcrBits = Watchdog::WDTCR_4S; }
+      else if (cyclesMs >= 2000) { cyclesMs -= 2000; wdtcrBits = Watchdog::WDTCR_2S; }
+      else if (cyclesMs >= 1000) { cyclesMs -= 1000; wdtcrBits = Watchdog::WDTCR_1S; }
+      else if (cyclesMs >= 500)  { cyclesMs -= 500;  wdtcrBits = Watchdog::WDTCR_500MS; }
+      else                       { cyclesMs -= 250;  wdtcrBits = Watchdog::WDTCR_250MS; }
 
       WDTCR |= bit(WDCE) | bit(WDE);
       WDTCR = bit(WDIE) | wdtcrBits;
@@ -93,19 +111,19 @@ namespace app {
 
   void Watchdog::delay(secs_t interval) {
     
-    secs_t cycles = interval + (interval * mCalibrationFactor ) / Watchdog::MSEC;
+    secs_t cyclesMs = interval + (interval * mCalibrationFactorUs ) / Watchdog::MSEC;
    
     MCUSR &= ~(bit(WDRF));
     WDTCR |= bit(WDCE) | bit(WDE);
     WDTCR = 0;
 
-    while (cycles) {
+    while (cyclesMs) {
   
       uint8_t wdtcrBits = 0;
-      if      (cycles >= 8) { cycles -= 8; wdtcrBits = Watchdog::WDTCR_8S; }
-      else if (cycles >= 4) { cycles -= 4; wdtcrBits = Watchdog::WDTCR_4S; }
-      else if (cycles >= 2) { cycles -= 2; wdtcrBits = Watchdog::WDTCR_2S; }
-      else                  { cycles -= 1; wdtcrBits = Watchdog::WDTCR_1S; }
+      if      (cyclesMs >= 8) { cyclesMs -= 8; wdtcrBits = Watchdog::WDTCR_8S; }
+      else if (cyclesMs >= 4) { cyclesMs -= 4; wdtcrBits = Watchdog::WDTCR_4S; }
+      else if (cyclesMs >= 2) { cyclesMs -= 2; wdtcrBits = Watchdog::WDTCR_2S; }
+      else                    { cyclesMs -= 1; wdtcrBits = Watchdog::WDTCR_1S; }
 
       WDTCR = wdtcrBits; 
       WDTCR |= bit(WDIE);
