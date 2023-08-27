@@ -72,6 +72,7 @@ public:
 
 private:
   usec_t mCalibrationFactorUs;
+  uint8_t mNiceCalibrationCounter;
   
   volatile bool mInterruptReceived;
 };
