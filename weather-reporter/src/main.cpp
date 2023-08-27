@@ -48,7 +48,7 @@ void setup() {
     int16_t calibration = 0;
     int16_t checksumBits = 0xFF;
 
-    char checksum = 0;
+    char checksum = 0xFF;
 
     for (uint8_t wait = 30; wait != 0; --wait, delay(100)) {
 
@@ -67,12 +67,16 @@ void setup() {
 
             break;
         }
+   }
+
+    if (checksum == CRC16(batteryVolts ^ calibration ^ (uint16_t)checksumBits)) {
+
+        checksumBits |= 0x04;
     }
-
-    if (checksum != CRC16(batteryVolts ^ calibration ^ (uint16_t)checksumBits)) {
-
+    else {
         batteryVolts = 0;
         calibration = 0;
+        checksumBits = 0;
     }
 
     Wire.endTransmission();
@@ -156,7 +160,7 @@ void loop()
         Wire.beginTransmission(I2C_ADDR);
 
         app::secs delta = (app::secs)(millis() - currentTicks) / app::SECONDS;
-        currentTime -= RANGE(delta, 0, 60 /* seconds */);
+        currentTime += RANGE(delta, 0, 60 /* seconds */);
 
         Wire.write(I2C_ADDR);
         Wire.write('T');
