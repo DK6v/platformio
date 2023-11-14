@@ -8,6 +8,8 @@
 #include <Arduino.h>
 #include "OneWire.h"
 
+#include "Timer.h"
+
 namespace app {
 
 class TimeRFC868 {   
@@ -16,7 +18,7 @@ public:
     TimeRFC868(const std::string& host, uint16_t port);
     ~TimeRFC868() = default;
 
-    unsigned int getCurrentTime();
+    secs_t getCurrentTime(std::string name);
 
 private:
     enum Status {

@@ -33,8 +33,8 @@
 #define PIN_LED     PIN_D4
 #define PIN_SETUP   PIN_D3
 
-#define PIN_SDA     PIN_D1   
-#define PIN_SCL     PIN_D2
+#define PIN_SDA     PIN_D2
+#define PIN_SCL     PIN_D1
 
 #elif defined(ESP32)
 

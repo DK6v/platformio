@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <WiFiClient.h>
 
+#include "Timer.h"
 #include "TimeRFC868.h"
 
 namespace app {
@@ -19,14 +20,14 @@ TimeRFC868::TimeRFC868(const char* host, uint16_t port = 37) :
     mHost(host),
     mPort(port) {}
 
-unsigned int TimeRFC868::getCurrentTime() {
+secs_t TimeRFC868::getCurrentTime(std::string name) {
 
     WiFiClient client;
-    unsigned int currentTime = 0;
+    secs_t currentTime = TIME_INVALID;
 
     if (0 != client.connect(mHost.c_str(), mPort)) {
         
-        client.printf("HELLO");
+        client.printf(name.c_str());
         client.flush(3000 /* ms */);
 
         unsigned int wait = 30;
@@ -34,10 +35,10 @@ unsigned int TimeRFC868::getCurrentTime() {
 
             if (client.available() >= 4) {
 
-                currentTime += ((uint8_t)client.read());
-                currentTime += ((uint8_t)client.read()) << 8;
-                currentTime += ((uint8_t)client.read()) << 16;
-                currentTime += ((uint8_t)client.read()) << 24;
+                currentTime = ((secs_t)client.read());
+                currentTime |= ((secs_t)client.read()) << 8;
+                currentTime |= ((secs_t)client.read()) << 16;
+                currentTime |= ((secs_t)client.read()) << 24;
                 break;
             }
 

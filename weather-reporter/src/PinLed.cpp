@@ -11,6 +11,7 @@ PinLed::PinLed(uint8_t pin, bool inverted):
     mDimm(0), mLastMs(0), mInverted(inverted) {
 
     pinMode(pin, OUTPUT);
+    this->off();
 }
 
 void PinLed::on() const {
@@ -39,22 +40,38 @@ void PinLed::setDimm(uint8_t dimm) {
     mDimm = dimm;
 }
 
-void PinLed::blink(unsigned long intervalMs) {
-
-    // Wait if several blinks in a row
-    uint64_t waitMs = millis() - mLastMs;
-    if (waitMs < intervalMs) {
-        delay(intervalMs - waitMs);
-    }
-
-    this->on();
-    delay(intervalMs);
-    this->off();
-    mLastMs = millis();
+void PinLed::blink(uint8_t count) {
+    blink(NORM, count);
 }
 
-void PinLed::shortBlink() {
-    this->blink(5);
+void PinLed::blink(Mode mode, uint8_t count) {
+
+    uint32_t intervalMs = duration(mode);
+
+    while (count--) {
+
+        // Wait if several blinks in a row
+        uint64_t waitMs = millis() - mLastMs;
+        if (waitMs < intervalMs) {
+            delay(intervalMs - waitMs);
+        }
+
+        this->on();
+        delay(intervalMs);
+        this->off();
+        mLastMs = millis();
+    }
+}
+
+uint32_t PinLed::duration(Mode mode) {
+
+    switch (mode) {
+        case SHORT: return 50;
+        case LONG:  return 500;
+        
+        case NORM: // fall through
+        default:    return 100;
+    }
 }
 
 } // namespace fm

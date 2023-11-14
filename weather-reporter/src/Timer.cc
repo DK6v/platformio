@@ -8,7 +8,7 @@ namespace app {
 
 TimerDispatcher::TimerDispatcher() {}
 
-void TimerDispatcher::startTimer(TimerListener& listener, msec interval, bool runOnce) {
+void TimerDispatcher::startTimer(TimerListener& listener, msec_t interval, bool runOnce) {
 
     Timer timer = {
         .listener = listener,
@@ -20,7 +20,7 @@ void TimerDispatcher::startTimer(TimerListener& listener, msec interval, bool ru
 
 void TimerDispatcher::process() {
 
-    msec currentTimeMs = millis();
+    unsigned long currentTimeMs = millis();
 
     for (auto it = mTimers.begin(); it != mTimers.end();) {
 

@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../power-board"
+		},
+		{
+			"name": "weather-reporter",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}
