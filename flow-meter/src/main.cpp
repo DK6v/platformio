@@ -170,7 +170,7 @@ void setup() {
     td.startTimer(hotWaterCounter,  (15 * app::MINUTES));
     td.startTimer(coldWaterCounter, (15 * app::MINUTES));
     td.startTimer(pzem,             (5  * app::MINUTES));
-    td.startTimer(pulsar,           (5  * app::MINUTES));
+    td.startTimer(pulsar,           (60 * app::MINUTES));
 
     Serial.print("Water counters, cold=");
     Serial.print(coldWaterCounter);

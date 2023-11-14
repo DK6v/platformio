@@ -5,6 +5,7 @@
 
 namespace app {
 
+#if defined(ESP8266)
 PinPulsar::PinPulsar(Reporter &reporter, PinOut &power)
     : mReporter(reporter),
       mPower(power),
@@ -15,7 +16,14 @@ PinPulsar::PinPulsar(Reporter &reporter, PinOut &power)
     
     mSerial.begin(9600);
 }
-
+#else
+PinPulsar::PinPulsar(Reporter &reporter, PinOut &power)
+    : mReporter(reporter),
+      mPower(power),
+      mPulsar(Serial, 0x03574677),
+      mLastHeatEnergy(0.0),
+      mLastReportTime(app::TIME_INVALID) {}
+#endif
 void PinPulsar::onTimer() {
     sendMetric();
 }

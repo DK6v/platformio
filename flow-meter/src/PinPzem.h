@@ -1,8 +1,11 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
 #include "PZEM004Tv30.h"
+
+#if defined(ESP8266)
+#include <SoftwareSerial.h>
+#endif
 
 #include "TimerDispatcher.h"
 #include "Reporter.h"
@@ -32,7 +35,9 @@ public:
 private:
     Reporter& mReporter;
 
+#if defined(ESP8266)
     SoftwareSerial mSerial;
+#endif
     PZEM004Tv30 mPzem;
 
     float mEnergyBase;

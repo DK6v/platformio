@@ -29,7 +29,9 @@ private:
     Reporter& mReporter;
     PinOut& mPower;
 
+#if defined(ESP8266)
     SoftwareSerial mSerial;
+#endif
     Pulsar mPulsar;
 
     float mLastHeatEnergy;

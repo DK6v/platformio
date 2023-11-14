@@ -24,8 +24,10 @@
 #include <vector>
 
 #include <Arduino.h>
-#include <SoftwareSerial.h>
 #include <HardwareSerial.h>
+#if defined(ESP8266)
+#include <SoftwareSerial.h>
+#endif
 
 #include "PinBase.h"
 
@@ -35,7 +37,9 @@ namespace app {
 
 class Pulsar {
 public:
+#if defined(ESP8266)
     Pulsar(SoftwareSerial& port, uint32_t address);
+#endif
     Pulsar(HardwareSerial& port, uint32_t address);
 
     ~Pulsar() = default;
@@ -97,7 +101,7 @@ protected:
     bool checkCRC(const uint8_t *buffer_p, uint8_t length);
     uint16_t CRC16(const uint8_t *start_p, const uint8_t *end_p) const;
 
-    void print(uint8_t *buffer_p, uint8 size);
+    void print(uint8_t *buffer_p, uint8_t size);
 
 private:
     Stream* mSerial_p;

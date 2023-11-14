@@ -30,49 +30,80 @@
 #define PIN_GPIO_35 35
 #define PIN_GPIO_36 36
 
-#if defined(NODEMCU)
+#ifdef ESP8266
 
-#define PIN_D0      PIN_GPIO_16
-#define PIN_D1      PIN_GPIO_5
-#define PIN_D2      PIN_GPIO_4
-#define PIN_D3      PIN_GPIO_0
-#define PIN_D4      PIN_GPIO_2
-#define PIN_D5      PIN_GPIO_14
-#define PIN_D6      PIN_GPIO_12
-#define PIN_D7      PIN_GPIO_13
-#define PIN_D8      PIN_GPIO_15
-#define PIN_RX      PIN_GPIO_3
-#define PIN_TX      PIN_GPIO_1
+  #define PIN_D0      PIN_GPIO_16
+  #define PIN_D1      PIN_GPIO_5
+  #define PIN_D2      PIN_GPIO_4
+  #define PIN_D3      PIN_GPIO_0
+  #define PIN_D4      PIN_GPIO_2
+  #define PIN_D5      PIN_GPIO_14
+  #define PIN_D6      PIN_GPIO_12
+  #define PIN_D7      PIN_GPIO_13
+  #define PIN_D8      PIN_GPIO_15
+  #define PIN_RX      PIN_GPIO_3
+  #define PIN_TX      PIN_GPIO_1
+  
+  #define SETUP_LED   2
+  #define SETUP_PIN   PIN_D1
+  
+  #define PIN_SDA     PIN_D2 
+  #define PIN_SCL     PIN_D1
+  
+  #define PIN_TX      PIN_GPIO_1
+  #define PIN_RX      PIN_GPIO_3
+  
+  #define PIN_TX2     PIN_GPIO_15
+  #define PIN_RX2     PIN_GPIO_13
+  
+#endif // ESP8266
 
-#define SETUP_LED   2
-#define SETUP_PIN   PIN_D1
+#ifdef ESP32
 
-#define PIN_SDA     PIN_D2 
-#define PIN_SCL     PIN_D1
+  #define PIN_D0      PIN_GPIO_16
+  #define PIN_D1      PIN_GPIO_5
+  #define PIN_D2      PIN_GPIO_4
+  #define PIN_D3      PIN_GPIO_0
+  #define PIN_D4      PIN_GPIO_2
+  #define PIN_D5      PIN_GPIO_14
+  #define PIN_D6      PIN_GPIO_12
+  #define PIN_D7      PIN_GPIO_13
+  #define PIN_D8      PIN_GPIO_15
+  #define PIN_RX      PIN_GPIO_3
+  #define PIN_TX      PIN_GPIO_1
+  
+  #define SETUP_LED   2
+  #define SETUP_PIN   PIN_D1
+  
+  #define PIN_SDA     PIN_D2 
+  #define PIN_SCL     PIN_D1
+  
+  #define PIN_TX      PIN_GPIO_1
+  #define PIN_RX      PIN_GPIO_3
+  
+  #define PIN_TX2     PIN_GPIO_15
+  #define PIN_RX2     PIN_GPIO_13
 
-#define PIN_TX      PIN_GPIO_1
-#define PIN_RX      PIN_GPIO_3
+#endif  // ESP32
 
-#define PIN_TX2     PIN_GPIO_15
-#define PIN_RX2     PIN_GPIO_13
 
-#elif defined(ESP01) 
+#ifdef ESP01 
 
-/*   D5/A0/ADC0/PB5 RESET  -|1*  8|-  VCC  
- *   D3/A3/ADC1/PB3        -|2   7|-  SCL/SCK    D2/A1/PB2
- *   D4/A2/ADC2/PB4        -|3   6|-  MISO       D1/PB1
- *                  GND    -|4   5|-  MOSI SDA   D0/PB0
- */
+  /*   D5/A0/ADC0/PB5 RESET  -|1*  8|-  VCC  
+   *   D3/A3/ADC1/PB3        -|2   7|-  SCL/SCK    D2/A1/PB2
+   *   D4/A2/ADC2/PB4        -|3   6|-  MISO       D1/PB1
+   *                  GND    -|4   5|-  MOSI SDA   D0/PB0
+   */
+  
+  #define PIN_GPIO0   0
+  #define PIN_GPIO2   2
+  
+  #define PIN_LED     PIN_GPIO2
+  
+  #define PIN_SDA     PIN_GPIO0   
+  #define PIN_SCL     PIN_GPIO2
 
-#define PIN_GPIO0   0
-#define PIN_GPIO2   2
-
-#define PIN_LED     PIN_GPIO2
-
-#define PIN_SDA     PIN_GPIO0   
-#define PIN_SCL     PIN_GPIO2
-
-#endif
+#endif // ESP01
 
 namespace app {
 

@@ -24,6 +24,7 @@
 
 namespace app {
 
+#if defined(ESP8266)
 Pulsar::Pulsar(SoftwareSerial& port, uint32_t address)
     : mSerial_p(nullptr),
       mIsSoftSerial(true),
@@ -34,6 +35,7 @@ Pulsar::Pulsar(SoftwareSerial& port, uint32_t address)
     port.begin(Pulsar::baudrate);
     mSerial_p = static_cast<Stream*>(&port);
 }
+#endif
 
 Pulsar::Pulsar(HardwareSerial& port, uint32_t address)
     : mSerial_p(nullptr),
@@ -136,10 +138,11 @@ uint8_t Pulsar::receive(uint8_t *buffer, uint8_t length) {
 
     uint8_t index = 0;
 
+#if defined(ESP8266)
     if(mIsSoftSerial) {
         ((SoftwareSerial*)mSerial_p)->listen();
     }
-
+#endif
     unsigned long startTime = millis();
 
     while((index < length) && ((millis() - startTime) < readTimeout)) {
@@ -260,7 +263,7 @@ uint16_t Pulsar::CRC16(const uint8_t *start_p, const uint8_t *end_p) const {
     return res;
 }
 
-void Pulsar::print(uint8_t *buffer_p, uint8 size) {
+void Pulsar::print(uint8_t *buffer_p, uint8_t size) {
 
     for(uint16_t ix = 0; ix < size; ++ix) {
         char temp[6];

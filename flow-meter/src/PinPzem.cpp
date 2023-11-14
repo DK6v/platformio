@@ -5,6 +5,7 @@
 
 namespace app {
 
+#ifdef PZEM004_SOFTSERIAL
 PinPzem::PinPzem(Reporter& reporter, float energyBase)
     : mReporter(reporter),
       mSerial(PIN_D7, PIN_D2),
@@ -12,9 +13,18 @@ PinPzem::PinPzem(Reporter& reporter, float energyBase)
       mEnergyBase(energyBase),
       mEnergySensor(0.0),
       mLastReportTime(app::TIME_INVALID) {
-    
+
     mSerial.begin(9600);
 }
+
+#else
+PinPzem::PinPzem(Reporter& reporter, float energyBase)
+    : mReporter(reporter),
+      mPzem(Serial, PIN_D7, PIN_D2),
+      mEnergyBase(energyBase),
+      mEnergySensor(0.0),
+      mLastReportTime(app::TIME_INVALID) {}
+#endif
 
 void PinPzem::init(float value) {
     mEnergyBase = value;
