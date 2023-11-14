@@ -32,14 +32,16 @@
 
 #define TIME_INVALID        0
 
+extern volatile bool interruptReceived;
+
 volatile unsigned long startTicks = 0;
-volatile unsigned long currentTicks = 0;
 
 volatile bool isShutdownEventRcvd = false;
-volatile uint16_t shutdownInterval = DEFAULT_SLEEP_TIME;
+volatile uint16_t shutdownInterval = 0;
 
 volatile uint32_t currentTime = 0;
 volatile uint32_t expectedTime = 0;
+volatile uint32_t sleepDuration = 0;
 
 volatile bool isShutdownIntervalValid = false;
 volatile bool isCurrentTimeValid = false;
@@ -101,7 +103,6 @@ void onEvent(int size) {
             case 'T': { /* datetime */
 
                 currentTime = 0;
-                currentTicks = 0;
                 isCurrentTimeValid = false;
 
                 unsigned int wait = 30;
@@ -122,19 +123,15 @@ void onEvent(int size) {
                     (checksum == ('T' ^ CRC32(currentTime)))) {
 
                     app::Watchdog& wd = app::Watchdog::getInstance();
-                    // app::secs_t duration = (app::secs_t)((millis() - startTicks) / app::SECOND);
+                    app::secs_t duration = (app::secs_t)((millis() - startTicks) / app::SECOND);
 
                     if (expectedTime != TIME_INVALID) {
 
-                        // expectedTime += RANGE(duration, 0, MAX_ACTIVE_TIME);
-                        wd.calibrate(shutdownInterval, currentTime - expectedTime);
+                        expectedTime += RANGE(duration, 0, MAX_ACTIVE_TIME);
+                        wd.calibrate(sleepDuration, currentTime - expectedTime);
                     }
 
-                    currentTicks = millis();
                     isCurrentTimeValid = true;
-                }
-                else {
-                    currentTime = TIME_INVALID;
                 }
             }
             break;
@@ -197,18 +194,18 @@ void loop() {
 
     if (isShutdownEventRcvd == true) {
 
-        app::secs_t duration = (app::secs_t)((millis() - currentTicks) / app::SECOND);
+        app::secs_t duration = (app::secs_t)((millis() - startTicks) / app::SECOND);
         duration = RANGE(duration, 0, MAX_ACTIVE_TIME);
 
-        uint32_t sleepDuration = RANGE(shutdownInterval - duration, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
-        expectedTime = (isCurrentTimeValid) ? (currentTime + shutdownInterval) : TIME_INVALID;
+        sleepDuration = RANGE(shutdownInterval - duration, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
+        expectedTime = (isCurrentTimeValid) ? (currentTime + sleepDuration) : TIME_INVALID;
 
         powerPin.off();
         wd.sleep(sleepDuration);
     }
     else {
         powerPin.off();
-        wd.sleep(shutdownInterval);
+        wd.sleep(MIN_SLEEP_TIME);
     }
 }
 

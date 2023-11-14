@@ -6,16 +6,12 @@
 
 #include "Watchdog.h"
 
-#define RANGE(value, min, max) \
-    (((value) < (min)) ? (min) : (((value) > (max)) ? (max) : (value)))
-
 volatile bool interruptReceived = true;
 
 namespace app {
 
   Watchdog::Watchdog()
-      : mCalibrationFactorUs(0L),
-        mNiceCalibrationCounter(0) {
+      : mCalibrationFactorUs(0L) {
   }
 
   void Watchdog::onInterruptEvent() {
@@ -35,41 +31,38 @@ namespace app {
     
       if (drift != 0) {
 
-          float percent = (100.0 * (float)(abs(drift))) / (float)interval;
-
-          /* drift >5% => 30 ms per second (2.5%) */
-          if (percent >= 5.0) {
-              setCalibration(rcopysign(25000L /* us */, drift));
+          /* drift >10% => 10 ms per second (1%) */
+          if ((interval / abs(drift)) < 10) {
+              setCalibration(rcopysign(10000L /* us */, drift)); 
           }
-          /* drift >2.5% => 5 ms per second (1.25%) */
-          else if (percent >= 2.5) {
-              setCalibration(rcopysign(12500L /* us */, drift));
-          }
-          /* drift >1% => 5.0 ms per second (1.0%) */
-          else if (percent >= 1.0) {
+          /* drift >5% => 5 ms per second (0.5%) */
+          else if ((interval / abs(drift)) < 20 ) {
               setCalibration(rcopysign(5000L /* us */, drift));
           }
-          /* drift >0.5% => 2.5 ms per second (0.25%) */
-          else if (percent >= 0.5) {
+          /* drift >2.5% => 2.5 ms per second (0.25%) */
+          else if ((interval / abs(drift)) < 40 ) {
               setCalibration(rcopysign(2500L /* us */, drift));
           }
-          /* drift >0.25% => 1 ms per second (0.1%) */
-          else if (percent >= 0.25) {
+          /* drift >1% => 1 ms per second (0.1%) */
+          else if ((interval / abs(drift)) < 100 ) {
               setCalibration(rcopysign(1000L /* us */, drift));
           }
-          /* drift >0.125% => 0.5...0.05 ms per second (0.02%) */
-          else if (percent >= 0.125) {
-              setCalibration(rcopysign(500L / RANGE(mNiceCalibrationCounter, 1, 10), drift));
+          /* drift >0.5% => 0.5 ms per second (0.05%) */
+          else if ((interval / abs(drift)) < 200 ) {
+              setCalibration(rcopysign(500L /* us */, drift));
           }
-          /* drift <0.1% => 0.2...0.01 ms per second (0.01%) */
+          /* drift >0.25% => 0.25 ms per second (0.025%) */
+          else if ((interval / abs(drift)) < 400 ) {
+              setCalibration(rcopysign(250L /* us */, drift));
+          }
+          /* drift >0.125% => 0.125 ms per second (0.0125%) */
+          else if ((interval / abs(drift)) < 800 ) {
+              setCalibration(rcopysign(125L /* us */, drift));
+          }
+          /* drift <0.125% => 0.05 ms per second (0.005%) */
           else {
-              setCalibration(rcopysign(250L / RANGE(mNiceCalibrationCounter, 1, 10), drift));
-          }
-
-          mNiceCalibrationCounter = 0;
-      }
-      else {
-          mNiceCalibrationCounter += 1;
+              setCalibration(rcopysign(50L /* us */, drift)); 
+          } 
       }
   }
 
