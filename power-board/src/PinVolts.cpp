@@ -27,7 +27,6 @@ void PinVolts::setMode(uint8_t mode) {
     }
 }
 
-
 float PinVolts::read(uint8_t attempts) {
 
     float readValue = 0.0;

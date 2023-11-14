@@ -10,38 +10,24 @@
 #include "PinI2C.h"
 #include "Watchdog.h"
 #include "Timer.h"
+#include "Checksum.h"
 
 #include "Wire.h"
 
 #define RANGE(value, min, max) \
     (((value) < (min)) ? (min) : (((value) > (max)) ? (max) : (value)))
 
-#define NBYTE(n, x)     ((uint8_t)(((x) >> (8 * ((n) - 1))) & 0xFF))
-#define LOBYTE(x)       NBYTE(1, x)
-#define HIBYTE(x)       NBYTE(2, x)
+#define I2C_ADDR            0x0A
 
-#define CRC16(x)        (NBYTE(1, x) ^ NBYTE(2, x))
-#define CRC32(x)        (NBYTE(1, x) ^ NBYTE(2, x) ^ NBYTE(3, x) ^ NBYTE(4, x))
-
-#define I2C_ADDR        0x0A
-
-#define MAX_ACTIVE_TIME     60
+#define MAX_ACTIVE_TIME     30
 #define MIN_SLEEP_TIME      60
 #define MAX_SLEEP_TIME      3600
-#define DEFAULT_SLEEP_TIME  180
+#define DEFAULT_SLEEP_TIME  900
 
 #define TIME_INVALID        0
 
-extern volatile bool interruptReceived;
-
-volatile unsigned long startTicks = 0;
-
 volatile bool isShutdownEventRcvd = false;
-volatile uint16_t shutdownInterval = 0;
-
-volatile uint32_t currentTime = 0;
-volatile uint32_t expectedTime = 0;
-volatile uint32_t sleepDuration = 0;
+volatile uint16_t shutdownInterval = DEFAULT_SLEEP_TIME;
 
 volatile bool isShutdownIntervalValid = false;
 volatile bool isCurrentTimeValid = false;
@@ -51,15 +37,22 @@ volatile uint8_t checksumBits = 0;
 app::PinOutput powerPin(PIN_D4);
 app::PinVolts batteryPin(PIN_D3, 10.0, 36.0);
 
+using namespace app;
+
 void onEvent(int size) {
 
     (void)size;
 
-    while(Wire.available()) {
+    uint8_t maxAttempts = 20;
 
-        uint8_t checksum = 0;
+    while (maxAttempts != 0) {
 
-        if (Wire.read() != I2C_ADDR) {
+        if ((Wire.available() == 0) ||
+            (Wire.read() != I2C_ADDR)) {
+
+            --maxAttempts;
+
+            delay(50);
             continue;
         }
 
@@ -69,32 +62,36 @@ void onEvent(int size) {
 
                 if (isShutdownEventRcvd == false) {
 
-                    shutdownInterval = 0;
+                    uint8_t checksum = 0;
+
+                    shutdownInterval = DEFAULT_SLEEP_TIME;
                     isShutdownIntervalValid = false;
 
-                    unsigned int wait = 30;
-                    while((wait--) != 0) {
+                    while (maxAttempts != 0) {
+                        
+                        if (Wire.available() >= 3) {
 
-                        if (Wire.available()) {
                             shutdownInterval  = ((uint16_t)Wire.read());
                             shutdownInterval |= ((uint16_t)Wire.read()) << 8;
                             checksum = (uint8_t)Wire.read();
+
                             break;
                         }
-
-                        delay(100);
+                        else {
+                            --maxAttempts;
+                            delay(30);
+                        }
                     }
 
-                    if ((shutdownInterval != 0) && 
-                        (checksum == ('S' ^ CRC16(shutdownInterval)))) {
+                    if (checksum == CRC('S', CRC16(shutdownInterval))) {
 
+                        if (shutdownInterval == 0) {
+                            shutdownInterval = DEFAULT_SLEEP_TIME;
+                        }
+
+                        isShutdownEventRcvd = true;
                         isShutdownIntervalValid = true;
                     }
-                    else {
-                        shutdownInterval = DEFAULT_SLEEP_TIME;
-                    }
-                
-                    isShutdownEventRcvd = true;
                 }
 
                 break;
@@ -102,34 +99,34 @@ void onEvent(int size) {
 
             case 'T': { /* datetime */
 
-                currentTime = 0;
+                uint8_t checksum = 0;
+                uint32_t currentTime = 0;
+
                 isCurrentTimeValid = false;
 
-                unsigned int wait = 30;
-                while((wait--) != 0) {
+                while (maxAttempts != 0) {
+                        
+                    if (Wire.available() >= 5) {
 
-                    if (Wire.available()) {
                         currentTime  = ((uint32_t)Wire.read());
                         currentTime |= ((uint32_t)Wire.read()) << 8;
                         currentTime |= ((uint32_t)Wire.read()) << 16;
                         currentTime |= ((uint32_t)Wire.read()) << 24;
+                        
                         checksum = (uint8_t)Wire.read();
+
                         break;
                     }
-                    delay(100);
+                    else {
+                        --maxAttempts;
+                        delay(30);
+                    }
                 }
 
-                if ((currentTime != 0) &&
-                    (checksum == ('T' ^ CRC32(currentTime)))) {
+                if (checksum == CRC('T', CRC32(currentTime))) {
 
                     app::Watchdog& wd = app::Watchdog::getInstance();
-                    app::secs_t duration = (app::secs_t)((millis() - startTicks) / app::SECOND);
-
-                    if (expectedTime != TIME_INVALID) {
-
-                        expectedTime += RANGE(duration, 0, MAX_ACTIVE_TIME);
-                        wd.calibrate(sleepDuration, currentTime - expectedTime);
-                    }
+                    wd.setCurrentTime(currentTime);
 
                     isCurrentTimeValid = true;
                 }
@@ -137,44 +134,56 @@ void onEvent(int size) {
             break;
 
             default:
-                (void)Wire.read(); // skip
                 break;
         }
+
+        break;
     }
 }
 
 void onRequest() {
 
-    app::Watchdog& wd = app::Watchdog::getInstance();
+    Watchdog& wd = Watchdog::getInstance();
+
+    secs_t currentTime = wd.datetime();
 
     uint16_t batteryVolts = (uint16_t)(batteryPin.read(9) * 1000);
     int16_t calibration = (int16_t)(wd.getCalibration() / 10);
 
     Wire.write(LOBYTE(batteryVolts));
     Wire.write(HIBYTE(batteryVolts));
+
     Wire.write(LOBYTE(calibration));
     Wire.write(HIBYTE(calibration));
+
+    Wire.write(NBYTE(0, currentTime));
+    Wire.write(NBYTE(1, currentTime));
+    Wire.write(NBYTE(2, currentTime));
+    Wire.write(NBYTE(3, currentTime));
+
     Wire.write((uint8_t)checksumBits);
 
-    Wire.write(CRC16(batteryVolts ^ calibration ^ (uint16_t)checksumBits));
+    Wire.write((uint8_t)CRC(CRC16(batteryVolts),
+                            CRC16(calibration),
+                            CRC32(currentTime),
+                            CRC8(checksumBits)));
 }
 
 void setup() {
 
-    app::Watchdog& wd = app::Watchdog::getInstance();
-    wd.resetCalibration();
-    wd.setCalibration(-100000 /* usec */);
+    Watchdog& wd = Watchdog::getInstance();
+    wd.setCalibration(-50 * Watchdog::MSEC_US); // MS per second
 
     Wire.begin(I2C_ADDR);
     Wire.onReceive(onEvent);
     Wire.onRequest(onRequest);
 
-    delay(2000);
+    delay(1000);
 }
 
 void loop() {
 
-    app::Watchdog& wd = app::Watchdog::getInstance();
+    Watchdog& wd = Watchdog::getInstance();
     
     checksumBits = ((isCurrentTimeValid)      ? 0x01 : 0x00) |
                    ((isShutdownIntervalValid) ? 0x02 : 0x00);
@@ -182,35 +191,36 @@ void loop() {
     isShutdownEventRcvd = false;
     isShutdownIntervalValid = false;
 
-    startTicks = millis();
     isCurrentTimeValid = false;
 
     powerPin.on();
     
-    app::msec_t activeInterval = MAX_ACTIVE_TIME;
-    while ((activeInterval-- != 0) && (!isShutdownEventRcvd)) {
-        delay(app::SECOND);
+    msec_t maxActiveTimeSecs = MAX_ACTIVE_TIME;
+    while ((maxActiveTimeSecs-- != 0) && (!isShutdownEventRcvd)) {
+        delay(SECOND);
     };   
+
+    powerPin.off();
 
     if (isShutdownEventRcvd == true) {
 
-        app::secs_t duration = (app::secs_t)((millis() - startTicks) / app::SECOND);
-        duration = RANGE(duration, 0, MAX_ACTIVE_TIME);
+        uint32_t sleepDuration = shutdownInterval;
 
-        sleepDuration = RANGE(shutdownInterval - duration, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
-        expectedTime = (isCurrentTimeValid) ? (currentTime + sleepDuration) : TIME_INVALID;
+        if (isCurrentTimeValid) {
 
-        powerPin.off();
-        wd.sleep(sleepDuration);
+            sleepDuration = RANGE(shutdownInterval, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
+        }
+
+        wd.powerDown(sleepDuration, shutdownInterval);
     }
     else {
-        powerPin.off();
-        wd.sleep(MIN_SLEEP_TIME);
+
+        wd.powerDown(DEFAULT_SLEEP_TIME);
     }
 }
 
 ISR ( WDT_vect ) {
 
-    app::Watchdog& wd = app::Watchdog::getInstance();
+    Watchdog& wd = Watchdog::getInstance();
     wd.onInterruptEvent();
 }
