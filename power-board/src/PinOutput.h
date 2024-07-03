@@ -22,4 +22,4 @@ private:
     uint8_t mValue;
 };
 
-} // namespace fm
+} // namespace app

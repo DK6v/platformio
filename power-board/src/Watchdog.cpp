@@ -4,6 +4,7 @@
 #include <avr/sleep.h>
 #include <avr/power.h>
 
+#include "PinBase.h"
 #include "Watchdog.h"
 
 #define RANGE(value, min, max) \
@@ -28,7 +29,7 @@ namespace app {
     void Watchdog::calibrate(secs_t calibrationInterval) {
 
         auto startMs = millis();
-        this->delay(calibrationInterval);
+        this->delayInterval(calibrationInterval);
 
         mCalibrationFactorUs =
             (-1L) * ((static_cast<msec_t>(millis() - startMs) - calibrationInterval * MSEC_US) /
@@ -132,42 +133,61 @@ namespace app {
 
     void Watchdog::powerDown(secs_t interval) {
 
-        volatile msec_t cyclesMs = interval * SECOND_MS;
-
+        volatile msec_t durationMs = interval * SECOND_MS;
+        
         // Apply calibration        
-        cyclesMs += (interval * mCalibrationFactorUs) / MSEC_US;
-
-        cyclesMs = RANGE(cyclesMs, 0, 60 * MINUTE_MS);
+        durationMs += (interval * mCalibrationFactorUs) / MSEC_US;
+        durationMs = RANGE(durationMs, 0, 60 * MINUTE_MS);
 
         mBaseDateTimeSecs = datetime();
+
+        // Disable ADC, reduce power usage 0.26 mA => ~0.01 mA.
+        ADCSRA &= ~bit(ADEN); 
 
         // Allow system sleep and set sleep mode
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 
-        sleep_enable();
+        // Disable interrupts
+        cli();
 
-        while (cyclesMs > 0) {
+        while (durationMs > 0) {
 
             volatile uint8_t wdtcrBits = 0;
 
-            if (cyclesMs >= 8000)       { cyclesMs -= 8000; wdtcrBits = Watchdog::WDTCR_8S; }
-            else if (cyclesMs >= 4000)  { cyclesMs -= 4000; wdtcrBits = Watchdog::WDTCR_4S; }
-            else if (cyclesMs >= 2000)  { cyclesMs -= 2000; wdtcrBits = Watchdog::WDTCR_2S; }
-            else if (cyclesMs >= 1000)  { cyclesMs -= 1000; wdtcrBits = Watchdog::WDTCR_1S; }
-            else if (cyclesMs >= 500)   { cyclesMs -= 500; wdtcrBits = Watchdog::WDTCR_500MS; }
-            else if (cyclesMs >= 250)   { cyclesMs -= 250; wdtcrBits = Watchdog::WDTCR_250MS; }
-            else                        { break; }
+            if (durationMs >= 8000)      { durationMs -= 8000; wdtcrBits = Watchdog::WDTCR_8S; }
+            else if (durationMs >= 4000) { durationMs -= 4000; wdtcrBits = Watchdog::WDTCR_4S; }
+            else if (durationMs >= 2000) { durationMs -= 2000; wdtcrBits = Watchdog::WDTCR_2S; }
+            else if (durationMs >= 1000) { durationMs -= 1000; wdtcrBits = Watchdog::WDTCR_1S; }
+            else if (durationMs >= 500)  { durationMs -= 500;  wdtcrBits = Watchdog::WDTCR_500MS; }
+            else if (durationMs >= 250)  { durationMs -= 250;  wdtcrBits = Watchdog::WDTCR_250MS; }
+            else                         { break; }
 
-            WDTCR |= bit(WDCE) | bit(WDE);
-            WDTCR = bit(WDIE) | wdtcrBits;
+            do {
+                // Set WDCE to modify WDTCR register
+                WDTCR |= bit(WDCE);
+                // Set WDIE to enable watchdog interupt and set sleep duration.
+                WDTCR = bit(WDIE) | wdtcrBits;
 
-            sleep_mode();
+                this->mInterruptReceived = false;
+
+                sleep_enable();
+                sei();
+                sleep_cpu();
+                sleep_disable();
+            }
+            while (this->mInterruptReceived != false);
         }
 
-        WDTCR |= (1 << WDCE) | (1 << WDE);
-        WDTCR = 0x00;
+        // Set WDCE to modify WDTCR register
+        WDTCR |= bit(WDCE);
+        // Reset WDCE register
+        WDTCR = 0;
 
-        sleep_disable();
+        // Enable ADC
+        ADCSRA |= bit(ADEN); 
+
+        // Enables interrupts
+        sei();
 
         if (mBaseDateTimeSecs != DATETIME_INVALID) {
 
@@ -223,7 +243,7 @@ namespace app {
         return timeout;
     }
 
-    void Watchdog::delay(secs_t interval) {
+    void Watchdog::delayInterval(secs_t interval) {
 
         secs_t cyclesMs = interval + (interval * mCalibrationFactorUs) / MSEC_US;
 

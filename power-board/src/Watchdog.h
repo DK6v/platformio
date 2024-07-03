@@ -43,7 +43,7 @@ public:
     void setCurrentTime(secs_t epoch, bool bCalibrateTimers = true);
     secs_t datetime();
 
-    void delay(secs_t interval);
+    void delayInterval(secs_t interval);
     void powerDown(secs_t interval);
     secs_t powerDown(secs_t interval, secs_t round);
 
@@ -74,9 +74,9 @@ public:
     static const uint8_t WDTCR_16MS = 0;
 
 private:
+    volatile bool mInterruptReceived;
     usec_t mCalibrationFactorUs;
     uint8_t mNiceCalibrationCounter;
-    volatile bool mInterruptReceived;
     secs_t mBaseDateTimeSecs;
     msec_t mBaseDateTimeMillis;
     secs_t mLastCalibrationTime;
