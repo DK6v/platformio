@@ -1,6 +1,3 @@
 [submodule "flow-meter/lib/WiFiManager"]
 	path = flow-meter/lib/WiFiManager
 	url = git@github.com:tzapu/WiFiManager.git
-[submodule "flow-meter-v2/lib/WiFiManager"]
-        path = flow-meter-v2/lib/WiFiManager
-        url = git@github.com:tzapu/WiFiManager.git
