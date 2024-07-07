@@ -68,7 +68,6 @@ uint32_t PinLed::duration(Mode mode) {
     switch (mode) {
         case SHORT: return 50;
         case LONG:  return 500;
-        
         case NORM: // fall through
         default:    return 100;
     }

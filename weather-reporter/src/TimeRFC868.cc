@@ -26,9 +26,9 @@ secs_t TimeRFC868::getCurrentTime(std::string name) {
     secs_t currentTime = TIME_INVALID;
 
     if (0 != client.connect(mHost.c_str(), mPort)) {
-        
+
         client.printf(name.c_str());
-        client.flush(3000 /* ms */);
+        // client.flush(3000 /* ms */);
 
         unsigned int wait = 30;
         while((wait--) != 0) {

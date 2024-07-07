@@ -12,7 +12,7 @@
 
 namespace app {
 
-class TimeRFC868 {   
+class TimeRFC868 {
 public:
     TimeRFC868(const char* host, uint16_t port);
     TimeRFC868(const std::string& host, uint16_t port);
