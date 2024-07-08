@@ -45,7 +45,7 @@ public:
     ~Pulsar() = default;
 
     static constexpr uint32_t baudrate = 9600;
-    static constexpr uint32_t readTimeout = 100;
+    static constexpr uint32_t readTimeout = 1000;
     static constexpr uint32_t updateInterval = 1000;
     
     enum Function {

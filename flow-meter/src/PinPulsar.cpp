@@ -31,7 +31,7 @@ void PinPulsar::onTimer() {
 void PinPulsar::sendMetric() {
 
     mPower.on();
-    delay(250);
+    delay(3 * app::SECONDS);
 
     secs currentTime = millis() / app::SECONDS;
 
@@ -62,6 +62,7 @@ void PinPulsar::sendMetric() {
         mLastReportTime = currentTime;
     }
 
+    delay(1 * app::SECONDS);
     mPower.off();
 }
 
