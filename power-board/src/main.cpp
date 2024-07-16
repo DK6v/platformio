@@ -153,7 +153,7 @@ void onRequest()
     Watchdog &wd = Watchdog::getInstance();
     secs_t currentTime = wd.datetime();
 
-    app::PinVolts batteryPin(PIN_D3, 10.0, 82.0);
+    app::PinVolts batteryPin(PIN_D3, 10.0, 83.0);
     uint16_t batteryVolts = (uint16_t)(batteryPin.read(9) * 1000);
     int16_t calibration = (int16_t)(wd.getCalibration() / 10);
 
@@ -179,11 +179,10 @@ void onRequest()
 void setup()
 {
     powerPin.off();
+    delay(500);
 
     Watchdog &wd = Watchdog::getInstance();
     wd.setCalibration(-50 * Watchdog::MSEC_US); // MS per second
-
-    delay(1000);
 }
 
 void loop()
