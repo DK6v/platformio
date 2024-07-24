@@ -10,6 +10,7 @@
 #include "common/Byte.h"
 #include "server/Controller.h"
 #include "server/view/View.h"
+#include "network/Network.h"
 #include "Timer.h"
 #include "TimeRFC868.h"
 #include "Reporter.h"
@@ -67,6 +68,7 @@ void sendReport()
     int16_t calibration = 0;
     int16_t checksumBits = 0xFF;
     uint32_t boardTime = 0;
+    uint32_t uptimeTimeMs = 0;
     char checksum = 0xFF;
 
     std::string fields;
@@ -76,9 +78,9 @@ void sendReport()
     // Read battery voltage
 
     Wire.beginTransmission(I2C_ADDR);
-    Wire.requestFrom(I2C_ADDR, 10);
+    Wire.requestFrom(I2C_ADDR, 14);
 
-    for (uint8_t wait = 30; wait != 0; --wait, delay(100))
+    for (uint8_t wait = 10; wait != 0; --wait, delay(100))
     {
         if (Wire.available())
         {
@@ -93,11 +95,14 @@ void sendReport()
             boardTime |= ((uint32_t)Wire.read()) << 16;
             boardTime |= ((uint32_t)Wire.read()) << 24;
 
+            uptimeTimeMs = ((uint32_t)Wire.read());
+            uptimeTimeMs |= ((uint32_t)Wire.read()) << 8;
+            uptimeTimeMs |= ((uint32_t)Wire.read()) << 16;
+            uptimeTimeMs |= ((uint32_t)Wire.read()) << 24;
+
             checksumBits = (uint8_t)Wire.read();
-
-            /* Skip checksum */
-            checksum = Wire.read();
-
+            checksum = (uint8_t)Wire.read();
+            
             break;
         }
     }
@@ -105,6 +110,7 @@ void sendReport()
     if (checksum == BYTE_XOR(BYTE16(batteryVolts),
                              BYTE16(calibration),
                              BYTE32(boardTime),
+                             BYTE32(uptimeTimeMs),
                              BYTE8(checksumBits)))
     {
         checksumBits |= 0x04;
@@ -114,6 +120,7 @@ void sendReport()
         batteryVolts = 0;
         calibration = 0;
         checksumBits = 0;
+        uptimeTimeMs = 0;
     }
 
     Wire.endTransmission();
@@ -185,6 +192,12 @@ void sendReport()
         fields += "calibration=" + std::to_string(calibration / 100.0);
     }
 
+    if (uptimeTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "uptime=" + std::to_string(uptimeTimeMs);
+    }
+
     if (checksumBits != 0xFF)
     {
         fields += (fields.length() != 0) ? "," : "";
@@ -219,8 +232,6 @@ void sendReport()
 
 void setup()
 {
-    pinLed.blink(PinLed::LONG, 2);
-
     app::console.log("cplusplus:%u", __cplusplus);
     app::console.log("=> Start <=");
 
@@ -234,8 +245,14 @@ void setup()
                          .add<IPAddress>(Config::ID::SETUP_AP_ADDRESS, IPAddress(192, 168, 0, 1))
                          .add<IPAddress>(Config::ID::SETUP_AP_GATEWAY, IPAddress(192, 168, 0, 1))
                          .add<IPAddress>(Config::ID::SETUP_AP_NW_MASK, IPAddress(255, 255, 255, 0))
+                         .add<std::vector<uint8_t>>(Config::ID::WIFI_AP_BSSID, {})
+                         .add<char>(Config::ID::WIFI_AP_CHANNEL, 0xFF)
+                         .add<IPAddress>(Config::ID::LOCAL_IP_ADDRESS, IPAddress())
                          .read(eeprom);
 
+#ifdef NW_CONNECT_FAST
+    network.connect();
+#else
     WiFi.begin(
         config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
         config.get<std::string>(Config::ID::WIFI_AP_PASSWORD).c_str());
@@ -248,18 +265,22 @@ void setup()
 
         delay(100);
     }
+#endif
 
-    if (WiFi.isConnected())
-    {
-        console.log("Connected SSID '%s'",
-                    config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str());
-        console.log("IP address: %s", WiFi.localIP().toString().c_str());
+    if (network.status() == Network::Status::CONNECTED) {
+    
+        console.log("Connected SSID '%s', channel %u",
+                    config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
+                    WiFi.channel());
+
+        console.log("IP address: %s",
+                    WiFi.localIP().toString().c_str());
 
         currentTime = timeRfc868.getCurrentTime(REPORT_NAME);
         currentTicks = millis();
 
-        if (currentTime != TIME_INVALID)
-        {
+        if (currentTime != TIME_INVALID) {
+
             currentTime -= 2208988800; // Convert to unix epoch (1900 -> 1970)
         }
 
@@ -267,8 +288,7 @@ void setup()
 
         sendReport();
 
-        pinLed.blink(app::PinLed::NORM);
-        WiFi.disconnect(true);
+        network.disconnect();
     }
     else
     {
@@ -293,8 +313,7 @@ void setup()
             auto rootUrl = std::shared_ptr<Route>(new Route);
 
             HtmlView configView = HtmlView();
-            configView.add(BodyView()
-                               .add(TextInputView()));
+            configView.add(BodyView().add(TextInputView()));
 
             rootUrl->setView(configView);
 
@@ -305,6 +324,8 @@ void setup()
 
         //    controler.handleRequest();
     }
+
+    config.write(eeprom);
 }
 
 void loop()
@@ -333,8 +354,6 @@ void loop()
 
     while (true)
     {
-        pinLed.blink(app::PinLed::NORM, 1);
-
         Wire.beginTransmission(I2C_ADDR);
 
         Wire.write(I2C_ADDR);

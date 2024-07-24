@@ -10,7 +10,8 @@ Console& console = Console::getInstance()
     .setBaudRate(115000);
 
 Console::Console() : serial(Serial),
-                     baudrate(115000)
+                     baudrate(115000),
+                     mBuffer({0})
 {
     this->serial.begin(this->baudrate);
 };
@@ -31,20 +32,30 @@ Console& Console::setBaudRate(unsigned long baudrate)
     return *this;
 }
 
-void Console::log(std::string message) {
-    this->serial.println(message.c_str());
+void Console::format(const char* fmt, ...) {
+
+    char* npos = mBuffer + std::strlen(mBuffer);
+
+    ::va_list ptr;
+    ::va_start(ptr, fmt);
+    std::vsnprintf(npos, sizeof(mBuffer) - std::strlen(mBuffer) - 1, fmt, ptr);
+    ::va_end(ptr);
+}
+
+void Console::flush() {
+
+    this->serial.println(mBuffer);
+    mBuffer[0] = '\0';
 }
 
 void Console::log(const char* fmt, ...) {
 
-    char buffer[64] = {0};
-
     ::va_list ptr;
     ::va_start(ptr, fmt);
-    std::vsnprintf(buffer, sizeof(buffer) - 1, fmt, ptr);
+    std::vsnprintf(mBuffer, sizeof(mBuffer) - 1, fmt, ptr);
     ::va_end(ptr);
 
-    this->serial.println(buffer);
+    this->flush();
 }
 
 }

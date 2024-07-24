@@ -1,5 +1,7 @@
 #include <EEPROM.h>
 
+#include <vector>
+
 #include "ConfigParameter.h"
 #include "Console.h"
 #include "common/Checksum.h"
@@ -8,17 +10,22 @@ using namespace app;
 
 // Class ConfigParameterBase
 
-ConfigParameterBase::ConfigParameterBase(unsigned char id, Type type)
-    : mId(id), mType(type) {}
+ConfigParameterBase::ConfigParameterBase(ConfigParameterType type, unsigned char id, bool isValid = false)
+    : mType(type), mId(id), mIsValid(isValid) {}
 
 unsigned char ConfigParameterBase::getId() {
 
     return this->mId;
 }
 
-ConfigParameterBase::Type ConfigParameterBase::getType() {
+ConfigParameterType ConfigParameterBase::getType() {
 
     return this->mType;
+}
+
+bool ConfigParameterBase::isValid() {
+
+    return mIsValid;
 }
 
 ByteBuffer::iterator ConfigParameterBase::read(ByteBuffer::iterator &it) {
@@ -57,11 +64,11 @@ ByteBuffer::iterator ConfigParameterBase::write(ByteBuffer::iterator &it) {
 
 template <>
 ConfigParameter<char>::ConfigParameter(unsigned char id)
-    : ConfigParameterBase(id, Type::BYTE), mValue(0), mIsValid(false) {};
+    : ConfigParameterBase(ConfigParameterType::BYTE, id), mValue(0), mIsValid(false) {};
 
 template <>
 ConfigParameter<char>::ConfigParameter(unsigned char id, const char &value)
-    : ConfigParameterBase(id, Type::BYTE), mValue(value), mIsValid(true) {};
+    : ConfigParameterBase(ConfigParameterType::BYTE, id), mValue(value), mIsValid(true) {};
 
 template <>
 ByteBuffer::iterator ConfigParameter<char>::read(ByteBuffer::iterator &it) {
@@ -81,6 +88,8 @@ ByteBuffer::iterator ConfigParameter<char>::read(ByteBuffer::iterator &it) {
                         checksum, mId, mType);
             return it;
         }
+
+        console.log("CFG <= R [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
     }
 
     return nextIt;
@@ -91,9 +100,13 @@ ByteBuffer::iterator ConfigParameter<char>::write(ByteBuffer::iterator &it) {
 
     auto nextIt = ConfigParameterBase::write(it);
 
+    char checksum = Checksum(Checksum::CRC8)
+        .calculate(reinterpret_cast<char *>(&mValue), sizeof(char));
+
     *nextIt++ = mValue;
-    *nextIt++ = Checksum(Checksum::CRC8)
-                    .calculate(reinterpret_cast<char *>(&mValue), sizeof(char));
+    *nextIt++ = checksum;
+
+    console.log("CFG => W [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
 
     return nextIt;
 }
@@ -102,11 +115,11 @@ ByteBuffer::iterator ConfigParameter<char>::write(ByteBuffer::iterator &it) {
 
 template <>
 ConfigParameter<int>::ConfigParameter(unsigned char id)
-    : ConfigParameterBase(id, Type::NUMBER), mValue(0), mIsValid(false) {};
+    : ConfigParameterBase(ConfigParameterType::NUMBER, id), mValue(0), mIsValid(false) {};
 
 template <>
 ConfigParameter<int>::ConfigParameter(unsigned char id, const int &value)
-    : ConfigParameterBase(id, Type::NUMBER), mValue(value), mIsValid(true) {};
+    : ConfigParameterBase(ConfigParameterType::NUMBER, id), mValue(value), mIsValid(true) {};
 
 template <>
 ByteBuffer::iterator ConfigParameter<int>::read(ByteBuffer::iterator &it) {
@@ -132,7 +145,7 @@ ByteBuffer::iterator ConfigParameter<int>::read(ByteBuffer::iterator &it) {
             return it;
         }
 
-        console.log("CFG <= [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
+        console.log("CFG <= R [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
     }
 
     return nextIt;
@@ -153,21 +166,21 @@ ByteBuffer::iterator ConfigParameter<int>::write(ByteBuffer::iterator &it) {
 
     *nextIt++ = checksum; 
 
-    console.log("CFG => [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
+    console.log("CFG => W [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
 
     return nextIt;
 }
 
-// Class ConfigParameter<int>
+// Class ConfigParameter<string>
 
 template <>
 ConfigParameter<std::string>::ConfigParameter(unsigned char id)
-    : ConfigParameterBase(id, Type::STRING), mValue(""), mIsValid(false) {};
+    : ConfigParameterBase(ConfigParameterType::STRING, id), mValue(""), mIsValid(false) {};
 
 template <>
 ConfigParameter<std::string>::ConfigParameter(unsigned char id,
                                               const std::string &value)
-    : ConfigParameterBase(id, Type::STRING), mValue(value), mIsValid(true) {};
+    : ConfigParameterBase(ConfigParameterType::STRING, id), mValue(value), mIsValid(true) {};
 
 template <>
 ByteBuffer::iterator
@@ -196,7 +209,7 @@ ConfigParameter<std::string>::read(ByteBuffer::iterator &it) {
             return it;
         }
 
-        console.log("CFG <= [%02d]: '%s', CS: 0x%X", mId, mValue.c_str(), checksum);
+        console.log("CFG <= R [%02d]: '%s', CS: 0x%X", mId, mValue.c_str(), checksum);
     }
 
     return nextIt;
@@ -220,7 +233,7 @@ ConfigParameter<std::string>::write(ByteBuffer::iterator &it) {
 
     *nextIt++ = checksum;
 
-    console.log("CFG => [%02d]: '%s', CS: 0x%X", mId, mValue.c_str(), checksum);
+    console.log("CFG => W [%02d]: '%s', CS: 0x%X", mId, mValue.c_str(), checksum);
 
     return nextIt;
 }
@@ -229,12 +242,12 @@ ConfigParameter<std::string>::write(ByteBuffer::iterator &it) {
 
 template <>
 ConfigParameter<IPAddress>::ConfigParameter(unsigned char id)
-    : ConfigParameterBase(id, Type::IP_ADDRESS), mValue(), mIsValid(false) {};
+    : ConfigParameterBase(ConfigParameterType::IP_ADDRESS, id), mValue(), mIsValid(false) {};
 
 template <>
 ConfigParameter<IPAddress>::ConfigParameter(unsigned char id,
                                             const IPAddress &value)
-    : ConfigParameterBase(id, Type::IP_ADDRESS), mValue(value), mIsValid(true) {};
+    : ConfigParameterBase(ConfigParameterType::IP_ADDRESS, id), mValue(value), mIsValid(true) {};
 
 template <>
 ByteBuffer::iterator
@@ -263,7 +276,7 @@ ConfigParameter<IPAddress>::read(ByteBuffer::iterator &it) {
 
         mValue = address;
 
-        console.log("CFG <= [%02d]: %s, CS: 0x%X",
+        console.log("CFG <= R [%02d]: %s, CS: 0x%X",
                     mId, IPAddress(address).toString().c_str(), checksum);
     }
 
@@ -286,9 +299,9 @@ ConfigParameter<IPAddress>::write(ByteBuffer::iterator &it) {
         .calculate(reinterpret_cast<char*>(&address), sizeof(int));
 
     *nextIt++ = checksum;
-
-    console.log("CFG => [%02d]: %s, CS: 0x%X",
+    console.log("CFG => W [%02d]: %s, CS: 0x%X",
                 mId, mValue.toString().c_str(), checksum);
 
     return nextIt;
 }
+

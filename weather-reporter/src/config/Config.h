@@ -58,6 +58,9 @@ enum Config::ID : unsigned char {
     SETUP_AP_ADDRESS,
     SETUP_AP_GATEWAY,
     SETUP_AP_NW_MASK,
+    WIFI_AP_BSSID,
+    WIFI_AP_CHANNEL,
+    LOCAL_IP_ADDRESS,
 };
 
 template<typename T>

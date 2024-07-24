@@ -23,15 +23,16 @@ public:
     Console& setSerial(HardwareSerial& serial);
     Console& setBaudRate(unsigned long baudrate);
 
-    void log(std::string message);
+    void format(const char* fmt, ...);
+    void flush();
 
-    // void log(const char* message);
     void log(const char* fmt, ...);
 
 private:
     HardwareSerial& serial;
-
     unsigned long baudrate;
+
+    char mBuffer[80];
 };
 
 extern Console& console;
