@@ -14,6 +14,30 @@ Network::Status Network::status() {
         : Network::Status::DISCONNECTED;
 }
 
+void Network::connect_w_tmo(Network::Type type, uint16_t waitSecs) {
+
+    uint16_t maxAttemps = waitSecs * 10;
+
+    if (type == Type::FAST) {
+
+        fastConnect();
+    }
+    else {
+
+        slowConnect();
+    }
+
+    /* Wait for the connection to be established */
+    while((maxAttemps--) != 0) {
+
+        if (WiFi.isConnected()) {
+            break;
+        }
+
+        delay(100);
+    }
+}
+
 void Network::connect() {
 
     unsigned long startTimeMs = millis();    
@@ -22,13 +46,13 @@ void Network::connect() {
 #ifdef NW_CONNECT_FAST
     if (config.get<IPAddress>(Config::ID::LOCAL_IP_ADDRESS).isSet()) {
 
-        network.fastConnect();
+        network.connect_w_tmo(Type::FAST, 8);
     }
 #endif
 
     if (network.status() != Network::Status::CONNECTED) {
 
-        network.slowConnect();
+        network.connect_w_tmo(Type::SLOW, 20);
     }
 
     if (network.status() == Network::Status::CONNECTED) {
@@ -121,16 +145,6 @@ void Network::fastConnect() {
         config.get<std::string>(Config::ID::WIFI_AP_PASSWORD).c_str(),
         config.get<char>(Config::ID::WIFI_AP_CHANNEL),
         config.get<std::vector<uint8_t>>(Config::ID::WIFI_AP_BSSID).data());
-    
-    /* Wait for the connection to be established */
-    for (int maxAttemps = 100; maxAttemps > 0; --maxAttemps) {
-
-        if (WiFi.isConnected()) {
-            break;
-        }
-
-        delay(100);
-    }
 }
 
 void Network::disconnect() {

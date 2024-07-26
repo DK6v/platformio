@@ -9,21 +9,23 @@ public:
     Network();
     ~Network() = default;
 
-    void connect();
+    enum class Type;
+    enum class Status;
 
-    void fastConnect();
-    void slowConnect();
+    void connect();
+    void connect_w_tmo(Type type, uint16_t waitSecs);
 
     void disconnect();
 
-    enum class Status;
     Status status();
 
 public:
-    enum class Status {
-        DISCONNECTED,
-        CONNECTED
-    };
+    enum class Type { SLOW, FAST };
+    enum class Status { DISCONNECTED, CONNECTED };
+
+protected:
+    void fastConnect();
+    void slowConnect();
 };
 
 inline static Network network;
