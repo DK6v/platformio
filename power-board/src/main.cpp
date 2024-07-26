@@ -22,12 +22,16 @@
 
 #define I2C_ADDR 0x0A
 
-#define MAX_ACTIVE_TIME 30
-#define MIN_SLEEP_TIME 60
-#define MAX_SLEEP_TIME 3600
-#define DEFAULT_SLEEP_TIME 900
+#define MAX_ACTIVE_TIME     60
+#define MIN_SLEEP_TIME      30
+#define MAX_SLEEP_TIME      (60 * 60)
+#define DEFAULT_SLEEP_TIME  (15 * 60)
 
 #define TIME_INVALID 0
+
+using namespace app;
+
+volatile uint32_t uptimeDurationMs = 0;
 
 volatile bool isShutdownEventRcvd = false;
 volatile uint16_t shutdownInterval = DEFAULT_SLEEP_TIME;
@@ -38,8 +42,6 @@ volatile bool isCurrentTimeValid = false;
 volatile uint8_t checksumBits = 0;
 
 app::PinOutput powerPin(PIN_D4);
-
-using namespace app;
 
 void onEvent(int size)
 {
@@ -89,14 +91,11 @@ void onEvent(int size)
 
                 if (checksum == CRC('S', CRC16(shutdownInterval)))
                 {
-
-                    if (shutdownInterval == 0)
-                    {
-                        shutdownInterval = DEFAULT_SLEEP_TIME;
-                    }
-
                     isShutdownEventRcvd = true;
                     isShutdownIntervalValid = true;
+                }
+                else {
+                    shutdownInterval = DEFAULT_SLEEP_TIME;
                 }
             }
 
@@ -153,9 +152,11 @@ void onRequest()
     Watchdog &wd = Watchdog::getInstance();
     secs_t currentTime = wd.datetime();
 
-    app::PinVolts batteryPin(PIN_D3, 10.0, 83.0);
+    app::PinVolts batteryPin(PIN_D3, 9.9, 43.0);
     uint16_t batteryVolts = (uint16_t)(batteryPin.read(9) * 1000);
     int16_t calibration = (int16_t)(wd.getCalibration() / 10);
+
+    uint32_t tempVar = 0x01;
 
     Wire.write(LOBYTE(batteryVolts));
     Wire.write(HIBYTE(batteryVolts));
@@ -168,11 +169,17 @@ void onRequest()
     Wire.write(NBYTE(2, currentTime));
     Wire.write(NBYTE(3, currentTime));
 
+    Wire.write(NBYTE(0, uptimeDurationMs));
+    Wire.write(NBYTE(1, uptimeDurationMs));
+    Wire.write(NBYTE(2, uptimeDurationMs));
+    Wire.write(NBYTE(3, uptimeDurationMs));
+
     Wire.write((uint8_t)checksumBits);
 
     Wire.write((uint8_t)CRC(CRC16(batteryVolts),
                             CRC16(calibration),
                             CRC32(currentTime),
+                            CRC32(uptimeDurationMs),
                             CRC8(checksumBits)));  
 }
 
@@ -187,6 +194,7 @@ void setup()
 
 void loop()
 {
+    unsigned long startTimeMs = millis();
     Watchdog &wd = Watchdog::getInstance();
 
     checksumBits = ((isCurrentTimeValid) ? 0x01 : 0x00) |
@@ -203,10 +211,10 @@ void loop()
 
     powerPin.on();
 
-    msec_t maxActiveTimeSecs = MAX_ACTIVE_TIME;
-    while ((maxActiveTimeSecs-- != 0) && (!isShutdownEventRcvd))
+    uint16_t maxWaitAttemps = MAX_ACTIVE_TIME * 10;
+    while ((maxWaitAttemps-- != 0) && (!isShutdownEventRcvd))
     {
-        delay(SECOND);
+        delay(100);
     };
 
     pinMode(PB0, INPUT);
@@ -215,16 +223,12 @@ void loop()
     pinMode(PB3, INPUT);
 
     powerPin.off();
+    uptimeDurationMs = static_cast<uint32_t>(millis() - startTimeMs);
 
-    if (isShutdownEventRcvd == true)
+    if ((isShutdownEventRcvd == true) &&
+        (isShutdownIntervalValid == true))
     {
-        uint32_t sleepDuration = shutdownInterval;
-
-        if (isCurrentTimeValid)
-        {
-            sleepDuration = RANGE(shutdownInterval, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
-        }
-
+        uint32_t sleepDuration = RANGE(shutdownInterval, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
         wd.powerDown(sleepDuration, shutdownInterval);
     }
     else
