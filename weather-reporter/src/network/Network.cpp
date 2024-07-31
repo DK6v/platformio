@@ -8,7 +8,7 @@ using namespace app;
 Network::Network() {}
 
 Network::Status Network::status() {
-    
+
     return WiFi.isConnected()
         ? Network::Status::CONNECTED
         : Network::Status::DISCONNECTED;
@@ -40,7 +40,7 @@ void Network::connect_w_tmo(Network::Type type, uint16_t waitSecs) {
 
 void Network::connect() {
 
-    unsigned long startTimeMs = millis();    
+    unsigned long startTimeMs = millis();
     Config &config = Config::getInstance();
 
 #ifdef NW_CONNECT_FAST
@@ -57,10 +57,10 @@ void Network::connect() {
 
     if (network.status() == Network::Status::CONNECTED) {
 
-        console.log("Wifi connected in %lu ms", (millis() - startTimeMs));    
+        console.log("Wifi connected in %lu ms", (millis() - startTimeMs));
 
         uint8_t bssid[6] = { 0 };
-        memcpy(bssid, WiFi.BSSID(), sizeof(bssid)); 
+        memcpy(bssid, WiFi.BSSID(), sizeof(bssid));
         console.format("AP MAC address (BSSID): %x:%x:%x:%x:%x:%x",
                        bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
 
@@ -76,7 +76,7 @@ void Network::connect() {
             Config::ID::LOCAL_IP_ADDRESS,
             WiFi.localIP());
     }
-    else {  
+    else {
 
         console.log("Wifi connection FAILED in %lu ms", (millis() - startTimeMs));
 

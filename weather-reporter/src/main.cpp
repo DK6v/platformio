@@ -47,91 +47,100 @@ volatile ticks_t currentTicks = TICKS_INVALID;
 
 volatile secs_t sleepInterval = REPORT_INTERVAL;
 
-// void handleForm() {
-//   if (server.method() != HTTP_POST) {
-//     server.send(405, "text/plain", "Method Not Allowed");
-//   } else {
-//     String message = "POST form was:\n";
-//
-//     for (unsigned int ix = 0; ix < server.args(); ++ix) {
-//       console.log("arg[%d]: name=%s value=%s",
-//                   ix, server.argName(ix), server.arg(ix).c_str());
-//     }
-//
-//     server.send(200, "text/plain", message);
-//   }
-// }
+// unsigned long startTimeMs = millis();
 
-void sendReport()
-{
-    int16_t batteryVolts = 0;
-    int16_t calibration = 0;
-    int16_t checksumBits = 0xFF;
-    uint32_t boardTime = 0;
-    uint32_t uptimeTimeMs = 0;
+volatile struct PmCounters {
+    // Power board metrics
+    int16_t batteryVolts;
+    int16_t calibration;
+    int16_t checksumBits;
+    uint32_t boardTime;
+    uint32_t lastOperationTimeMs;
+
+    // Operational metrics
+    uint32_t powerOnTimeMs;
+    uint32_t connStartTimeMs;
+    uint32_t connCompleteTimeMs;
+    uint32_t metricsStartTimeMs;
+    uint32_t metricsCompleteTimeMs;
+    uint32_t sensorsStartTimeMs;
+    uint32_t sensorsCompleteTimeMs;
+    uint32_t bmeSensorStartTimeMs;
+    uint32_t bmeSensorCompleteTimeMs;
+    uint32_t lightSensorStartTimeMs;
+    uint32_t lightSensorCompleteTimeMs;
+
+} g_pm;
+
+void readPowerBoardCounters() {
+
     char checksum = 0xFF;
 
-    std::string fields;
+    g_pm.metricsStartTimeMs = millis();
 
     Wire.begin(PIN_SDA, PIN_SCL);
-
-    // Read battery voltage
-
     Wire.beginTransmission(I2C_ADDR);
     Wire.requestFrom(I2C_ADDR, 14);
 
-    for (uint8_t wait = 10; wait != 0; --wait, delay(100))
+    for (uint8_t wait = 20; wait != 0; --wait, delay(50))
     {
         if (Wire.available())
         {
-            batteryVolts = ((uint16_t)Wire.read());
-            batteryVolts |= ((uint16_t)Wire.read()) << 8;
+            g_pm.batteryVolts = ((uint16_t)Wire.read());
+            g_pm.batteryVolts |= ((uint16_t)Wire.read()) << 8;
 
-            calibration = (int16_t)Wire.read();
-            calibration |= ((int16_t)Wire.read()) << 8;
+            g_pm.calibration = (int16_t)Wire.read();
+            g_pm.calibration |= ((int16_t)Wire.read()) << 8;
 
-            boardTime = ((uint32_t)Wire.read());
-            boardTime |= ((uint32_t)Wire.read()) << 8;
-            boardTime |= ((uint32_t)Wire.read()) << 16;
-            boardTime |= ((uint32_t)Wire.read()) << 24;
+            g_pm.boardTime = ((uint32_t)Wire.read());
+            g_pm.boardTime |= ((uint32_t)Wire.read()) << 8;
+            g_pm.boardTime |= ((uint32_t)Wire.read()) << 16;
+            g_pm.boardTime |= ((uint32_t)Wire.read()) << 24;
 
-            uptimeTimeMs = ((uint32_t)Wire.read());
-            uptimeTimeMs |= ((uint32_t)Wire.read()) << 8;
-            uptimeTimeMs |= ((uint32_t)Wire.read()) << 16;
-            uptimeTimeMs |= ((uint32_t)Wire.read()) << 24;
+            g_pm.lastOperationTimeMs = ((uint32_t)Wire.read());
+            g_pm.lastOperationTimeMs |= ((uint32_t)Wire.read()) << 8;
+            g_pm.lastOperationTimeMs |= ((uint32_t)Wire.read()) << 16;
+            g_pm.lastOperationTimeMs |= ((uint32_t)Wire.read()) << 24;
 
-            checksumBits = (uint8_t)Wire.read();
+            g_pm.checksumBits = (uint8_t)Wire.read();
+
             checksum = (uint8_t)Wire.read();
-            
+
             break;
         }
     }
 
-    if (checksum == BYTE_XOR(BYTE16(batteryVolts),
-                             BYTE16(calibration),
-                             BYTE32(boardTime),
-                             BYTE32(uptimeTimeMs),
-                             BYTE8(checksumBits)))
+    if (checksum != BYTE_XOR(BYTE16(g_pm.batteryVolts),
+                             BYTE16(g_pm.calibration),
+                             BYTE32(g_pm.boardTime),
+                             BYTE32(g_pm.lastOperationTimeMs),
+                             BYTE8(g_pm.checksumBits)))
     {
-        checksumBits |= 0x04;
-    }
-    else
-    {
-        batteryVolts = 0;
-        calibration = 0;
-        checksumBits = 0;
-        uptimeTimeMs = 0;
+        g_pm.batteryVolts = 0;
+        g_pm.calibration = 0;
+        g_pm.checksumBits = 0;
+        g_pm.lastOperationTimeMs = 0;
     }
 
     Wire.endTransmission();
 
-    // Read measurements
+    g_pm.metricsCompleteTimeMs = millis();
+}
 
-    for (uint8_t wait = 5; wait != 0; --wait, delay(200)) {
+void sendReport()
+{
+    std::string fields;
 
+    readPowerBoardCounters();
+
+    g_pm.sensorsStartTimeMs = millis();
+    g_pm.bmeSensorStartTimeMs = millis();
+
+    for (uint8_t wait = 20; wait != 0; --wait, delay(50))
+    {
         Wire.beginTransmission(0x76);
         uint8_t rc = Wire.endTransmission();
-    
+
         if (rc == 0) {
             bme.begin(0x76);
             bme.read();
@@ -139,8 +148,11 @@ void sendReport()
         }
     }
 
-    for (uint8_t wait = 5; wait != 0; --wait, delay(200)) {
-
+    g_pm.bmeSensorCompleteTimeMs = millis();
+    g_pm.lightSensorStartTimeMs = millis();
+    
+    for (uint8_t wait = 20; wait != 0; --wait, delay(50))
+    {
         Wire.beginTransmission(0x23);
         uint8_t rc = Wire.endTransmission();
         if (rc == 0) {
@@ -150,65 +162,155 @@ void sendReport()
         }
     }
 
+    g_pm.lightSensorCompleteTimeMs = millis();
+    g_pm.sensorsCompleteTimeMs = millis();
+
     if (!std::isnan(bme.temperature))
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "temp=" + std::to_string(ROUNDF(bme.temperature, 2));
+        fields += "temp=";
+        fields += std::to_string(ROUNDF(bme.temperature, 2));
     }
 
     if (!std::isnan(bme.pressure))
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "pressure=" + std::to_string(ROUNDF(bme.pressure, 2));
+        fields += "pressure=";
+        fields += std::to_string(ROUNDF(bme.pressure, 2));
     }
 
     if (!std::isnan(bme.humidity))
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "humidity=" + std::to_string(ROUNDF(bme.humidity, 2));
+        fields += "humidity=";
+        fields += std::to_string(ROUNDF(bme.humidity, 2));
     }
 
     if (!std::isnan(light.lightLevel))
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "light=" + std::to_string(ROUNDF(light.lightLevel, 2));
+        fields += "light=";
+        fields += std::to_string(ROUNDF(light.lightLevel, 2));
     }
 
-    if (batteryVolts != 0)
+    if (g_pm.batteryVolts != 0)
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "battery=" + std::to_string(ROUNDF(batteryVolts / 1000.0, 2));
+        fields += "battery=";
+        fields += std::to_string(ROUNDF(g_pm.batteryVolts / 1000.0, 2));
     }
 
     if (WiFi.isConnected())
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "rssi=" + std::to_string(WiFi.RSSI());
+        fields += "rssi=";
+        fields += std::to_string(WiFi.RSSI());
     }
 
-    if (calibration != 0)
+    if (g_pm.calibration != 0)
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "calibration=" + std::to_string(calibration / 100.0);
+        fields += "calibration=";
+        fields += std::to_string(g_pm.calibration / 100.0);
     }
 
-    if (uptimeTimeMs != 0)
+    if (g_pm.lastOperationTimeMs != 0)
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "uptime=" + std::to_string(uptimeTimeMs);
+        fields += "lastOperationTimeMs=";
+        fields += std::to_string(g_pm.lastOperationTimeMs);
     }
 
-    if (checksumBits != 0xFF)
+    if (g_pm.connStartTimeMs != 0)
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "checksumBits=" + std::to_string(checksumBits);
+        fields += "connStartTimeMs=";
+        fields += std::to_string(g_pm.connStartTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.connCompleteTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "connCompleteTimeMs=";
+        fields += std::to_string(g_pm.connCompleteTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.metricsStartTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "metricsStartTimeMs=";
+        fields += std::to_string(g_pm.metricsStartTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.metricsCompleteTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "metricsCompleteTimeMs=";
+        fields += std::to_string(g_pm.metricsCompleteTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.sensorsStartTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "sensorsStartTimeMs=";
+        fields += std::to_string(g_pm.sensorsStartTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.sensorsCompleteTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "sensorsCompleteTimeMs=";
+        fields += std::to_string(g_pm.sensorsCompleteTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.bmeSensorStartTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "bmeSensorStartTimeMs=";
+        fields += std::to_string(g_pm.bmeSensorStartTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.bmeSensorCompleteTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "bmeSensorCompleteTimeMs=";
+        fields += std::to_string(g_pm.bmeSensorCompleteTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.lightSensorStartTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "lightSensorStartTimeMs=";
+        fields += std::to_string(g_pm.lightSensorStartTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.lightSensorCompleteTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "lightSensorCompleteTimeMs=";
+        fields += std::to_string(g_pm.lightSensorCompleteTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.powerOnTimeMs != 0)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "timeToReportMs=";
+        fields += std::to_string(millis() - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.checksumBits != 0xFF)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "checksumBits=";
+        fields += std::to_string(g_pm.checksumBits);
     }
 
 #ifdef BUILD_DEBUG
-    if (boardTime != 0)
+    if (g_pm.boardTime != 0)
     {
         fields += (fields.length() != 0) ? "," : "";
-        fields += "boardTime=" + std::to_string(boardTime);
+        fields += "boardTime=";
+        fields += std::to_string(g_pm.boardTime);
     }
 
     fields += (fields.length() != 0) ? "," : "";
@@ -235,6 +337,9 @@ void setup()
     app::console.log("cplusplus:%u", __cplusplus);
     app::console.log("=> Start <=");
 
+    memset(const_cast<PmCounters*>(&g_pm), 0, sizeof(PmCounters));
+    g_pm.powerOnTimeMs = millis();
+
     app::StorageEeprom eeprom = app::StorageEeprom(128);
 
     Config &config = Config::getInstance()
@@ -249,6 +354,8 @@ void setup()
                          .add<char>(Config::ID::WIFI_AP_CHANNEL, 0xFF)
                          .add<IPAddress>(Config::ID::LOCAL_IP_ADDRESS, IPAddress())
                          .read(eeprom);
+
+    g_pm.connStartTimeMs = millis();
 
 #ifdef NW_CONNECT_FAST
     network.connect();
@@ -266,9 +373,11 @@ void setup()
         delay(100);
     }
 #endif
+    
+    g_pm.connCompleteTimeMs = millis();
 
     if (network.status() == Network::Status::CONNECTED) {
-    
+
         console.log("Connected SSID '%s', channel %u",
                     config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
                     WiFi.channel());
@@ -369,3 +478,18 @@ void loop()
         delay(3 * app::SECONDS);
     }
 }
+
+#if 0
+void handleForm() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+  } else {
+    String message = "POST form was:\n";
+    for (unsigned int ix = 0; ix < server.args(); ++ix) {
+      console.log("arg[%d]: name=%s value=%s",
+                  ix, server.argName(ix), server.arg(ix).c_str());
+    }
+    server.send(200, "text/plain", message);
+  }
+}
+#endif

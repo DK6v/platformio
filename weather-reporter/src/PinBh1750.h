@@ -17,7 +17,7 @@ public:
     ~PinBH1750() = default;
 
     bool begin(uint8_t address = 0x23);
-    bool available() const;
+    bool available();
     void read();
 
     float readLightLevel();

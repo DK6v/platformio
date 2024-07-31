@@ -18,8 +18,6 @@ PinBme280::PinBme280(uint8_t sda, uint8_t scl)
 bool PinBme280::begin(uint8_t address) {
 
     Wire.begin(mSdaPin, mSclPin);
-
-    delay(1000);
     mAvailable = mSensor.begin(address);
 
     return mAvailable;

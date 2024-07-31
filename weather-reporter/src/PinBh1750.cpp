@@ -18,7 +18,6 @@ bool PinBH1750::begin(uint8_t address) {
 
     (void)address;
 
-    delay(1000);
     mAvailable = mSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
 
     return mAvailable;
@@ -26,20 +25,21 @@ bool PinBH1750::begin(uint8_t address) {
 
 float PinBH1750::readLightLevel() {
 
-    if (available()) {
+    for (uint8_t wait = 20; wait != 0; --wait, delay(50)) {
 
-        delay(1000);
-        lightLevel = mSensor.readLightLevel();
+        if (available()) {
 
-        return (lightLevel >= 0.0) ? lightLevel : NAN;
+            lightLevel = mSensor.readLightLevel();
+            return (lightLevel >= 0.0) ? lightLevel : NAN;
+        }
     }
 
     return NAN;
 }
 
-bool PinBH1750::available() const {
+bool PinBH1750::available() {
 
-    return mAvailable;
+    return mSensor.measurementReady();
 }
 
 void PinBH1750::read() {
