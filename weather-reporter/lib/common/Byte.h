@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 /* Macro VFUNC_NARG() returns the number of variadic arguments passed to it.
  * Example:
  *   VFUNC_NARG(a, b, c) => 3

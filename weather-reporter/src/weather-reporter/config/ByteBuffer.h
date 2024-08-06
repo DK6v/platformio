@@ -3,7 +3,7 @@
 #include <memory>
 #include <iterator>
 
-#include "common/Byte.h"
+#include "Byte.h"
 
 namespace app
 {

@@ -5,9 +5,9 @@
 #include <AutoConnect.h>
 
 #include "Console.h"
-#include "common/Checksum.h"
+#include "Checksum.h"
 #include "config/Config.h"
-#include "common/Byte.h"
+#include "Byte.h"
 #include "server/Controller.h"
 #include "server/view/View.h"
 #include "network/Network.h"
@@ -70,6 +70,8 @@ volatile struct PmCounters {
     uint32_t lightSensorStartTimeMs;
     uint32_t lightSensorCompleteTimeMs;
 
+    // Results
+    bool sendReportResult;
 } g_pm;
 
 void readPowerBoardCounters() {
@@ -328,7 +330,8 @@ void sendReport()
         }
 
         console.log("Send: %s", (header + fields).c_str());
-        reporter.send(header + fields);
+        
+        g_pm.sendReportResult = reporter.send(header + fields);
     }
 }
 
@@ -460,6 +463,19 @@ void loop()
 
         Wire.endTransmission();
     }
+
+#if 0
+    if (true) {
+        Wire.beginTransmission(I2C_ADDR);
+    
+        Wire.write(I2C_ADDR);
+        Wire.write('R');
+        Wire.write(g_pm.sendReportResult);
+        Wire.write(BYTE_XOR('R', BYTE8(g_pm.sendReportResult)));
+    
+        Wire.endTransmission();
+    }
+#endif
 
     while (true)
     {

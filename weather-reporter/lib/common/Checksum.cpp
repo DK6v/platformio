@@ -1,8 +1,6 @@
 #include <iterator>
 
-#include <Console.h>
-#include "common/Byte.h"
-
+#include "Byte.h"
 #include "Checksum.h"
 
 namespace app {

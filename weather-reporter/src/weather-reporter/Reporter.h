@@ -18,8 +18,8 @@ public:
     Reporter(const std::string& host, uint16_t port);
     ~Reporter() = default;
 
-    size_t send(std::string metric);
-    size_t send(const char* metric);
+    bool send(std::string metric);
+    bool send(const char* metric);
 
 private:
     enum Status {

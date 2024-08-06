@@ -4,7 +4,7 @@
 
 #include "ConfigParameter.h"
 #include "Console.h"
-#include "common/Checksum.h"
+#include "Checksum.h"
 
 using namespace app;
 

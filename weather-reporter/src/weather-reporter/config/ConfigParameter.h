@@ -8,7 +8,7 @@
 
 #include "Console.h"
 #include "ByteBuffer.h"
-#include "common/Checksum.h"
+#include "Checksum.h"
 
 namespace app {
 

@@ -2,7 +2,7 @@
 #include <algorithm>
 
 #include "Console.h"
-#include "common/Byte.h"
+#include "Byte.h"
 
 #include "ByteBuffer.h"
 

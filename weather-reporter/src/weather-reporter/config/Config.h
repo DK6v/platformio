@@ -9,7 +9,7 @@
 #include "ConfigParameter.h"
 #include "ByteBuffer.h"
 #include "StorageEeprom.h"
-#include "../common/Checksum.h"
+#include "Checksum.h"
 
 namespace app {
 
