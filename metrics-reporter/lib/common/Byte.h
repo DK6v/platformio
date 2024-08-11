@@ -2,6 +2,13 @@
 
 #include <stdint.h>
 
+/* Number of bits in basic data type
+*/
+#define BYTE_LEN    (8)
+#define CHAR_LEN    (BYTE_LEN * sizeof(int))
+#define WORD_LEN    (BYTE_LEN * sizeof(int))
+#define DWORD_LEN   (BYTE_LEN * sizeof(int))
+
 /* Macro VFUNC_NARG() returns the number of variadic arguments passed to it.
  * Example:
  *   VFUNC_NARG(a, b, c) => 3
@@ -190,3 +197,11 @@
  */
 #define ROUNDF(_number, _precision) \
     (((int32_t)((_number) * (POWER10(_precision) * 1.0) + 0.5)) / ((POWER10(_precision) * 1.0)))
+
+/* A macro to determine the endianness of the machine:
+ * with a specified precision:
+ *   IS_BIG_ENDIAN
+ * Example:
+ *   if (IS_BIG_ENDIAN) { ... }
+ */
+#define IS_BIG_ENDIAN (!(union { uint16_t u16; unsigned char c; }){ .u16 = 1 }.c)
