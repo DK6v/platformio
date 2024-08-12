@@ -8,6 +8,7 @@
 #include "Checksum.h"
 #include "config/Config.h"
 #include "Byte.h"
+#include "BufferHelper.h"
 #include "server/Controller.h"
 #include "server/view/View.h"
 #include "network/Network.h"
@@ -88,25 +89,15 @@ void readPowerBoardCounters() {
     {
         if (Wire.available())
         {
-            g_pm.batteryVolts = ((uint16_t)Wire.read());
-            g_pm.batteryVolts |= ((uint16_t)Wire.read()) << 8;
+            auto rbuf = RBufferHelper(std::bind(&TwoWire::read, Wire));
 
-            g_pm.calibration = (int16_t)Wire.read();
-            g_pm.calibration |= ((int16_t)Wire.read()) << 8;
+            g_pm.batteryVolts = rbuf.getBytes(2);
+            g_pm.calibration = rbuf.getBytes(2);
+            g_pm.boardTime = rbuf.getBytes(4);
+            g_pm.lastOperationTimeMs = rbuf.getBytes(4);
+            g_pm.checksumBits = rbuf.getByte();
 
-            g_pm.boardTime = ((uint32_t)Wire.read());
-            g_pm.boardTime |= ((uint32_t)Wire.read()) << 8;
-            g_pm.boardTime |= ((uint32_t)Wire.read()) << 16;
-            g_pm.boardTime |= ((uint32_t)Wire.read()) << 24;
-
-            g_pm.lastOperationTimeMs = ((uint32_t)Wire.read());
-            g_pm.lastOperationTimeMs |= ((uint32_t)Wire.read()) << 8;
-            g_pm.lastOperationTimeMs |= ((uint32_t)Wire.read()) << 16;
-            g_pm.lastOperationTimeMs |= ((uint32_t)Wire.read()) << 24;
-
-            g_pm.checksumBits = (uint8_t)Wire.read();
-
-            checksum = (uint8_t)Wire.read();
+            checksum = rbuf.getByte();
 
             break;
         }
