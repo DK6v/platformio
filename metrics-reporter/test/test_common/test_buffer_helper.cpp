@@ -8,7 +8,7 @@
 // using namespace app;
 
 TEST(TestBufferWrapper, GetTest001) {
-    std::vector<char> vect(10);
+    std::vector<uint8_t> vect(10);
     std::iota(vect.begin(), vect.end(), 1);
 
     auto it = vect.begin();
@@ -22,7 +22,7 @@ TEST(TestBufferWrapper, GetTest001) {
 
 TEST(TestBufferWrapper, GetTest002) {
 
-    std::vector<char> vect(10);
+    std::vector<uint8_t> vect(10);
     std::iota(vect.begin(), vect.end(), 1);
 
     auto it = vect.begin();
@@ -69,4 +69,128 @@ TEST(TestBufferWrapper, GetTest004) {
     EXPECT_EQ(rbuf.getBits(4), 0x0B);
     EXPECT_EQ(rbuf.getBits(4), 0x0C);
     EXPECT_EQ(rbuf.getBits(4), 0x0D);
+}
+
+TEST(TestBufferWrapper, SetTest001) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    wbuf.setByte(0x01);
+    wbuf.setByte(0x02);
+
+    EXPECT_EQ(vect[0], 0x01);
+    EXPECT_EQ(vect[1], 0x02);
+}
+
+TEST(TestBufferWrapper, SetTest002) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    wbuf.setBytes(0x01020304, 4);
+
+    EXPECT_EQ(vect[0], 0x04);
+    EXPECT_EQ(vect[1], 0x03);
+    EXPECT_EQ(vect[2], 0x02);
+    EXPECT_EQ(vect[3], 0x01);
+}
+
+TEST(TestBufferWrapper, SetTest004) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    wbuf.setBytes(0x01020304, 4);
+    wbuf.setBytes(0x05060708, 4, true);
+
+    EXPECT_EQ(0x01020304, reinterpret_cast<uint32_t*>(vect.data())[0]);
+    EXPECT_EQ(0x08070605, reinterpret_cast<uint32_t*>(vect.data())[1]);
+}
+
+TEST(TestBufferWrapper, SetTest005) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    wbuf.setBit(true);
+    wbuf.setBit(true);
+    wbuf.flush();
+
+    EXPECT_EQ(vect[0], 0x03);
+}
+
+TEST(TestBufferWrapper, SetTest006) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    for (int i : std::views::iota(0, 7)) {
+        wbuf.setBit(true);
+    }
+    EXPECT_EQ(vect[0], 0x00);
+
+    wbuf.setBit(true);
+    EXPECT_EQ(vect[0], 0xFF);
+}
+
+TEST(TestBufferWrapper, SetTest007) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    wbuf.setBits(0xAA, 8);
+    wbuf.setBits(0xBB, 4);
+    wbuf.flush();
+
+    EXPECT_EQ(vect[0], 0xAA);
+    EXPECT_EQ(vect[1], 0x0B);
+}
+
+TEST(TestBufferWrapper, SetTest008) {
+
+    std::vector<uint8_t> vect(10);
+    std::fill(vect.begin(), vect.end(), 0);
+
+    auto it = vect.begin();
+    auto wbuf = app::WBufferHelper([&it](char value) {
+        *it++ = value;
+    });
+
+    wbuf.setBits(0x0A, 4);
+    wbuf.setByte(0xBC);
+    wbuf.spoof();
+
+    EXPECT_EQ(vect[0], 0xAB);
+    EXPECT_EQ(vect[1], 0xC0);
 }

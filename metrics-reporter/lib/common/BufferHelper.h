@@ -27,4 +27,30 @@ private:
     uint16_t size_;
 };
 
+class WBufferHelper
+{
+public:
+    WBufferHelper(std::function<void(char)> cb);
+
+    void setByte(uint8_t value);
+    void setBytes(uint32_t value, int count, bool reverse = false);
+
+    void setBit(bool value);
+    void setBits(uint32_t value, int count);
+
+    void flush();
+    void spoof();
+
+//    uint32_t setBits(int count);
+
+//    uint8_t setByte();
+//    uint32_t setBytes(int count, bool reverse = false);
+
+private:
+    std::function<void(char)> cb_;
+
+    uint16_t buffer_;
+    uint16_t size_;
+};
+
 } // namespace
