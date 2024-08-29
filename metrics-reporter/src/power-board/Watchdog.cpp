@@ -110,7 +110,6 @@ namespace app {
             if ((currentTime != DATETIME_INVALID) &&
                 (mLastCalibrationTime != DATETIME_INVALID)) {
 
-
                 calibrate(currentTime - mLastCalibrationTime, epoch - currentTime);
             }
 

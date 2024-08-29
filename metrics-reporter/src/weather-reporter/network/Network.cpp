@@ -11,52 +11,43 @@ Network::Status Network::status() {
 
     return WiFi.isConnected()
         ? Network::Status::CONNECTED
-        : Network::Status::DISCONNECTED;
+        : Network::Status::UNDEFINED;
 }
 
-void Network::connect_w_tmo(Network::Type type, uint16_t waitSecs) {
+Network::Status Network::connect_w_tmo(Network::Type type, uint16_t waitSecs) {
 
-    uint16_t maxAttemps = waitSecs * 10;
-
-    if (type == Type::FAST) {
-
-        fastConnect();
-    }
-    else {
-
-        slowConnect();
-    }
+    auto rc = (type == Type::FAST) ? fastConnect() : slowConnect();
 
     /* Wait for the connection to be established */
+    uint16_t maxAttemps = waitSecs * 20;
     while((maxAttemps--) != 0) {
-
         if (WiFi.isConnected()) {
+            rc = Status::CONNECTED;
             break;
         }
-
-        delay(100);
+        delay(50);
     }
+
+    return rc;
 }
 
-void Network::connect() {
+Network::Status Network::connect() {
+
+    auto rc = Status::UNDEFINED;
+    Config &config = Config::getInstance();
 
     unsigned long startTimeMs = millis();
-    Config &config = Config::getInstance();
 
 #ifdef NW_CONNECT_FAST
     if (config.get<IPAddress>(Config::ID::LOCAL_IP_ADDRESS).isSet()) {
-
-        network.connect_w_tmo(Type::FAST, 8);
+        rc = network.connect_w_tmo(Type::FAST, 8);
     }
 #endif
-
-    if (network.status() != Network::Status::CONNECTED) {
-
-        network.connect_w_tmo(Type::SLOW, 20);
+    if (rc != Network::Status::CONNECTED) {
+        rc = network.connect_w_tmo(Type::SLOW, 20);
     }
 
-    if (network.status() == Network::Status::CONNECTED) {
-
+    if (rc == Network::Status::CONNECTED) {
         console.log("Wifi connected in %lu ms", (millis() - startTimeMs));
 
         uint8_t bssid[6] = { 0 };
@@ -75,23 +66,22 @@ void Network::connect() {
         config.set<IPAddress>(
             Config::ID::LOCAL_IP_ADDRESS,
             WiFi.localIP());
-    }
-    else {
 
+    } else {
         console.log("Wifi connection FAILED in %lu ms", (millis() - startTimeMs));
-
         console.log("SLOW WiFi: SSID=%s, PSWD=%s",
             config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
             config.get<std::string>(Config::ID::WIFI_AP_PASSWORD).c_str());
 
-        WiFi.begin(
-            config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
-            config.get<std::string>(Config::ID::WIFI_AP_PASSWORD).c_str());
+        rc = Status::FAILED;
     }
+
+    return rc;
 }
 
-void Network::slowConnect() {
+Network::Status Network::slowConnect() {
 
+    auto rc = Status::CONNECTING;
     Config &config = Config::getInstance();
 
     console.log("Network: slow start (SSID=%s, PSWD=%s)",
@@ -102,22 +92,13 @@ void Network::slowConnect() {
         config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
         config.get<std::string>(Config::ID::WIFI_AP_PASSWORD).c_str());
 
-    /* Wait for the connection to be established */
-    for (int maxAttemps = 100; maxAttemps > 0; --maxAttemps) {
-
-        if (WiFi.isConnected()) {
-            break;
-        }
-
-        delay(100);
-    }
+    return rc;
 }
 
-void Network::fastConnect() {
+Network::Status Network::fastConnect() {
 
+    auto rc = Status::CONNECTING;
     Config &config = Config::getInstance();
-
-    // WiFi.persistent(true);
 
     console.log("Network: set static IP address: %s",
         config.get<IPAddress>(Config::ID::LOCAL_IP_ADDRESS).toString().c_str());
@@ -145,6 +126,8 @@ void Network::fastConnect() {
         config.get<std::string>(Config::ID::WIFI_AP_PASSWORD).c_str(),
         config.get<char>(Config::ID::WIFI_AP_CHANNEL),
         config.get<std::vector<uint8_t>>(Config::ID::WIFI_AP_BSSID).data());
+
+    return rc;
 }
 
 void Network::disconnect() {

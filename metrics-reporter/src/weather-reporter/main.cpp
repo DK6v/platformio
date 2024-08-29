@@ -57,6 +57,7 @@ volatile struct PmCounters {
     int16_t checksumBits;
     uint32_t boardTime;
     uint32_t lastOperationTimeMs;
+    Network::Status lastConnectionStatus;
 
     // Operational metrics
     uint32_t powerOnTimeMs;
@@ -72,7 +73,7 @@ volatile struct PmCounters {
     uint32_t lightSensorCompleteTimeMs;
 
     // Results
-    bool sendReportResult;
+    Network::Status connectionStatus;
 } g_pm;
 
 void readPowerBoardCounters() {
@@ -83,7 +84,7 @@ void readPowerBoardCounters() {
 
     Wire.begin(PIN_SDA, PIN_SCL);
     Wire.beginTransmission(I2C_ADDR);
-    Wire.requestFrom(I2C_ADDR, 14);
+    Wire.requestFrom(I2C_ADDR, 15);
 
     for (uint8_t wait = 20; wait != 0; --wait, delay(50))
     {
@@ -95,6 +96,7 @@ void readPowerBoardCounters() {
             g_pm.calibration = rbuf.getBytes(2);
             g_pm.boardTime = rbuf.getBytes(4);
             g_pm.lastOperationTimeMs = rbuf.getBytes(4);
+            g_pm.lastConnectionStatus = static_cast<Network::Status>(rbuf.getByte());
             g_pm.checksumBits = rbuf.getByte();
 
             checksum = rbuf.getByte();
@@ -107,12 +109,14 @@ void readPowerBoardCounters() {
                              BYTE16(g_pm.calibration),
                              BYTE32(g_pm.boardTime),
                              BYTE32(g_pm.lastOperationTimeMs),
+                             BYTE8(static_cast<uint8_t>(g_pm.lastConnectionStatus)),
                              BYTE8(g_pm.checksumBits)))
     {
         g_pm.batteryVolts = 0;
         g_pm.calibration = 0;
-        g_pm.checksumBits = 0;
         g_pm.lastOperationTimeMs = 0;
+        g_pm.lastConnectionStatus = Network::Status::UNDEFINED;
+        g_pm.checksumBits = 0;
     }
 
     Wire.endTransmission();
@@ -214,6 +218,13 @@ void sendReport()
         fields += std::to_string(g_pm.lastOperationTimeMs);
     }
 
+    if (g_pm.lastConnectionStatus != Network::Status::UNDEFINED)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "lastConnStatus=";
+        fields += std::to_string(static_cast<uint8_t>(g_pm.lastConnectionStatus));
+    }
+
     if (g_pm.connStartTimeMs != 0)
     {
         fields += (fields.length() != 0) ? "," : "";
@@ -226,6 +237,13 @@ void sendReport()
         fields += (fields.length() != 0) ? "," : "";
         fields += "connCompleteTimeMs=";
         fields += std::to_string(g_pm.connCompleteTimeMs - g_pm.powerOnTimeMs);
+    }
+
+    if (g_pm.connectionStatus != Network::Status::UNDEFINED)
+    {
+        fields += (fields.length() != 0) ? "," : "";
+        fields += "connStatus=";
+        fields += std::to_string(static_cast<uint8_t>(g_pm.connectionStatus));
     }
 
     if (g_pm.metricsStartTimeMs != 0)
@@ -321,8 +339,7 @@ void sendReport()
         }
 
         console.log("Send: %s", (header + fields).c_str());
-        
-        g_pm.sendReportResult = reporter.send(header + fields);
+        reporter.send(header + fields);
     }
 }
 
@@ -350,9 +367,10 @@ void setup()
                          .read(eeprom);
 
     g_pm.connStartTimeMs = millis();
+    g_pm.connectionStatus = Network::Status::DISCONNECTED;
 
 #ifdef NW_CONNECT_FAST
-    network.connect();
+    g_pm.connectionStatus = network.connect();
 #else
     WiFi.begin(
         config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
@@ -433,52 +451,44 @@ void setup()
 
 void loop()
 {
+    auto wbuf = WBufferHelper([Wire](uint8_t val) {
+        Wire.write(val);
+    });
+
     Wire.begin(PIN_SDA, PIN_SCL);
 
-    if (currentTime != TIME_INVALID)
-    {
+    if (currentTime != TIME_INVALID) {
         Wire.beginTransmission(I2C_ADDR);
 
         app::secs_t delta = (app::secs_t)(millis() - currentTicks) / app::SECONDS;
         currentTime += RANGE_LIMIT(delta, 0, 120);
 
-        Wire.write(I2C_ADDR);
-        Wire.write('T');
-        Wire.write((currentTime) & 0xFF);
-        Wire.write((currentTime >> 8) & 0xFF);
-        Wire.write((currentTime >> 16) & 0xFF);
-        Wire.write((currentTime >> 24) & 0xFF);
-
-        /* Checksum */
-        Wire.write(BYTE_XOR('T', BYTE32(currentTime)));
+        wbuf.setByte(I2C_ADDR);
+        wbuf.setByte('T');
+        wbuf.setBytes(currentTime, 4);
+        wbuf.setByte(BYTE_XOR('T', BYTE32(currentTime)));
 
         Wire.endTransmission();
     }
 
-#if 0
-    if (true) {
+    if (g_pm.connectionStatus != Network::Status::UNDEFINED) {
         Wire.beginTransmission(I2C_ADDR);
     
-        Wire.write(I2C_ADDR);
-        Wire.write('R');
-        Wire.write(g_pm.sendReportResult);
-        Wire.write(BYTE_XOR('R', BYTE8(g_pm.sendReportResult)));
+        wbuf.setByte(I2C_ADDR);
+        wbuf.setByte('R');
+        wbuf.setByte(static_cast<char>(g_pm.connectionStatus));
+        wbuf.setByte(BYTE_XOR('R', BYTE8(static_cast<char>(g_pm.connectionStatus))));
     
         Wire.endTransmission();
     }
-#endif
 
-    while (true)
-    {
+    while (true) {
         Wire.beginTransmission(I2C_ADDR);
 
-        Wire.write(I2C_ADDR);
-        Wire.write('S');
-        Wire.write(LOBYTE(REPORT_INTERVAL));
-        Wire.write(HIBYTE(REPORT_INTERVAL));
-
-        /* Checksum */
-        Wire.write(BYTE_XOR('S', BYTE16(REPORT_INTERVAL)));
+        wbuf.setByte(I2C_ADDR);
+        wbuf.setByte('S');
+        wbuf.setBytes(REPORT_INTERVAL, 2);
+        wbuf.setByte(BYTE_XOR('S', BYTE16(REPORT_INTERVAL)));
 
         Wire.endTransmission();
 

@@ -12,8 +12,8 @@ public:
     enum class Type;
     enum class Status;
 
-    void connect();
-    void connect_w_tmo(Type type, uint16_t waitSecs);
+    Status connect();
+    Status connect_w_tmo(Type type, uint16_t waitSecs);
 
     void disconnect();
 
@@ -21,11 +21,11 @@ public:
 
 public:
     enum class Type { SLOW, FAST };
-    enum class Status { DISCONNECTED, CONNECTED };
+    enum class Status { UNDEFINED, DISCONNECTED, CONNECTING, CONNECTED, FAILED };
 
 protected:
-    void fastConnect();
-    void slowConnect();
+    Status fastConnect();
+    Status slowConnect();
 };
 
 inline static Network network;
