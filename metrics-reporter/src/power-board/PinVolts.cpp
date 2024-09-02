@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include <stdlib.h>
 
+#include "SortHelper.h"
 #include "PinVolts.h"
 
 namespace app {
@@ -54,12 +54,10 @@ float PinVolts::read(uint8_t attempts) {
                 readValues[ix] = (float)analogRead(mPin);
             }
 
-            auto compare = [] (const void *a, const void *b) {
-                return (int)((*((float*)a) == *((float*)b)) ? 0 :
-                             (*((float*)a) < *((float*)b)) ? -1 : 1); };
-            qsort(readValues, attempts, sizeof(float), compare);
+            app::bsort(readValues, attempts);
 
-            for (uint8_t ix = (attempts / 3); ix < (attempts - (attempts / 3)); ++ix) {
+            for (uint8_t ix = (attempts / 3); ix < (attempts - (attempts / 3)); ++ix)
+            {
                 readValue += readValues[ix];
                 ++numOfReadings;
             } 

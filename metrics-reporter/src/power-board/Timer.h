@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
-
 namespace app {
 
 using msec_t = signed long;

@@ -72,7 +72,7 @@
  * Example:
  *   NBYTE(2, 0x04030201) => 0x03
  */
-#define NBYTE(_position, _n) ((uint8_t)(((_n) >> (8 * (_position))) & 0xFF))
+#define NBYTE(_position, _n)    (((_n) >> (8 * (_position))) & 0xFF)
 
 /* Macros to extract the highest and lowest bytes of a 16-bit integer:
  *   LOBYTE(number), HIBYTE(number).
@@ -147,14 +147,16 @@
 #define BYTE32(_n) BYTE_XOR(NBYTE(0, (_n)), NBYTE(1, (_n)), NBYTE(2, (_n)), NBYTE(3, (_n)))
 
 /* Macro to limit the value within a certain range:
- *   RANGE_LIMIT(_number, _min, _max)
+ *   MIN(_number, _min)
+ *   MAX(_number, _max)
+ *   RANGE(_number, _min, _max)
  * Example:
- *   RANGE_LIMIT(1, 2, 4) => 2
- *   RANGE_LIMIT(3, 2, 4) => 3
- *   RANGE_LIMIT(5, 2, 4) => 4
+ *   RANGE(1, 2, 4) => 2
+ *   RANGE(3, 2, 4) => 3
+ *   RANGE(5, 2, 4) => 4
  */
-#define RANGE_LIMIT(_number, _min, _max) \
-    (((_number) < (_min)) ? (_min) : (((_number) > (_max)) ? (_max) : (_number)))
+#define RANGE(value, min, max) \
+    (((value) < (min)) ? (min) : (((value) > (max)) ? (max) : (value)))
 
 /* Macro for raising a number to a power:
  *   POWER(_number, _degree)

@@ -9,18 +9,18 @@ namespace app {
 
 class ChecksumAlgorithm {
 public:
-    virtual void accumulate(unsigned int* acc_p, const char value) const = 0;
+    virtual void accumulate(uint32_t* acc_p, const char value) const = 0;
 
-    virtual void accumulate(unsigned int* acc_p, const char value, unsigned short count) const;
-    virtual void setBase(unsigned int* acc_p) const;
-    virtual void setFinal(unsigned int* acc_p) const;
+    virtual void accumulate(uint32_t* acc_p, const char value, uint16_t count) const;
+    virtual void setBase(uint32_t* acc_p) const;
+    virtual void setFinal(uint32_t* acc_p) const;
 };
 
 class ChecksumXor : public ChecksumAlgorithm {
 public:
     explicit ChecksumXor() = default;
 
-    virtual void accumulate(unsigned int* acc_p, const char value) const;
+    virtual void accumulate(uint32_t* acc_p, const char value) const;
 };
 
 template <typename D, typename T>
@@ -70,50 +70,50 @@ protected:
     bool mOutReverse;
 };
 
-class ChecksumCRC8 : public ChecksumCRC<ChecksumCRC8, unsigned char> {
+class ChecksumCRC8 : public ChecksumCRC<ChecksumCRC8, uint8_t> {
 public:
-    explicit ChecksumCRC8(const unsigned char polynom,
-                          const unsigned char base = 0,
-                          const unsigned char finalXor = 0,
+    explicit ChecksumCRC8(const uint8_t polynom,
+                          const uint8_t base = 0,
+                          const uint8_t finalXor = 0,
                           const bool inReverse = false,
                           const bool outReverse = false);
 
-    void accumulate(unsigned int* acc_p, const char value) const;
+    void accumulate(uint32_t* acc_p, const char value) const;
 
-    void setBase(unsigned int* acc_p) const;
-    void setFinal(unsigned int* acc_p) const;
+    void setBase(uint32_t* acc_p) const;
+    void setFinal(uint32_t* acc_p) const;
 };
 
-class ChecksumCRC16 : public ChecksumCRC<ChecksumCRC16, unsigned short> {
+class ChecksumCRC16 : public ChecksumCRC<ChecksumCRC16, uint16_t> {
 public:
 
-    explicit ChecksumCRC16(const unsigned short polynom,
-                           const unsigned short base = 0,
-                           const unsigned short finalXor = 0,
+    explicit ChecksumCRC16(const uint16_t polynom,
+                           const uint16_t base = 0,
+                           const uint16_t finalXor = 0,
                            const bool inReverse = false,
                            const bool outReverse = false);
 
-    void accumulate(unsigned int* acc_p, const char value) const;
+    void accumulate(uint32_t* acc_p, const char value) const;
 
-    void setBase(unsigned int* acc_p) const;
-    void setFinal(unsigned int* acc_p) const;
+    void setBase(uint32_t* acc_p) const;
+    void setFinal(uint32_t* acc_p) const;
 };
 
-class ChecksumCRC32 : public ChecksumCRC<ChecksumCRC32, unsigned int>  {
+class ChecksumCRC32 : public ChecksumCRC<ChecksumCRC32, uint32_t>  {
 public:
 
-    explicit ChecksumCRC32(const unsigned int polynom,
-                           const unsigned int base = 0,
-                           const unsigned int finalXor = 0,
+    explicit ChecksumCRC32(const uint32_t polynom,
+                           const uint32_t base = 0,
+                           const uint32_t finalXor = 0,
                            const bool inReverse = false,
                            const bool outReverse = false);
 
-    ChecksumCRC32& setPolynom(const unsigned int polynom) override;
+    ChecksumCRC32& setPolynom(const uint32_t polynom) override;
 
-    void accumulate(unsigned int* acc_p, const char value) const;
+    void accumulate(uint32_t* acc_p, const char value) const;
 
-    void setBase(unsigned int* acc_p) const;
-    void setFinal(unsigned int* acc_p) const;
+    void setBase(uint32_t* acc_p) const;
+    void setFinal(uint32_t* acc_p) const;
 };
 
 class Checksum {
@@ -127,27 +127,27 @@ public:
     ~Checksum() = default;
 
     template<typename Iterator>
-    unsigned int calculate(Iterator begin, Iterator end) const;
+    uint32_t calculate(Iterator begin, Iterator end) const;
 
-    unsigned int calculate(const char* begin, const char* end) const;
-    unsigned int calculate(const char* data, unsigned short length) const;
+    uint32_t calculate(const char* begin, const char* end) const;
+    uint32_t calculate(const char* data, uint16_t length) const;
 
     const ChecksumAlgorithm& mFunction;
 };
 
 template<typename Iterator>
-unsigned int Checksum::calculate(Iterator begin, Iterator end) const {
+uint32_t Checksum::calculate(Iterator begin, Iterator end) const {
 
     using value_type = typename std::iterator_traits<Iterator>::value_type;
 
-    unsigned int retval = 0;
-    unsigned int count = 0;
+    uint32_t retval = 0;
+    uint32_t count = 0;
 
     mFunction.setBase(&retval);
 
     while (begin != end) {
 
-        for (unsigned char ix = 0; ix < sizeof(value_type); ++ix) {
+        for (uint8_t ix = 0; ix < sizeof(value_type); ++ix) {
 
             const char value = NBYTE(ix, *begin);
             mFunction.accumulate(&retval, value, count++);
@@ -159,6 +159,5 @@ unsigned int Checksum::calculate(Iterator begin, Iterator end) const {
     mFunction.setFinal(&retval);
     return retval;
 }
-
 
 } // namespace

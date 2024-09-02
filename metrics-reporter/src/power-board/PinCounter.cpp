@@ -3,7 +3,7 @@
 #include "PinCounter.h"
 
 namespace app {
-
+ 
 PinCounter::PinCounter(uint8_t pin):
     PinBase(pin),
     mCounter(0) {

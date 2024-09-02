@@ -8,7 +8,8 @@
 #include "Checksum.h"
 #include "config/Config.h"
 #include "Byte.h"
-#include "BufferHelper.h"
+#include "RBufferHelper.h"
+#include "WBufferHelper.h"
 #include "server/Controller.h"
 #include "server/view/View.h"
 #include "network/Network.h"
@@ -50,7 +51,8 @@ volatile secs_t sleepInterval = REPORT_INTERVAL;
 
 // unsigned long startTimeMs = millis();
 
-volatile struct PmCounters {
+volatile struct PmCounters
+{
     // Power board metrics
     int16_t batteryVolts;
     int16_t calibration;
@@ -76,7 +78,8 @@ volatile struct PmCounters {
     Network::Status connectionStatus;
 } g_pm;
 
-void readPowerBoardCounters() {
+void readPowerBoardCounters()
+{
 
     char checksum = 0xFF;
 
@@ -86,12 +89,14 @@ void readPowerBoardCounters() {
     Wire.beginTransmission(I2C_ADDR);
     Wire.requestFrom(I2C_ADDR, 15);
 
+    auto rbuf = RBufferHelper<TwoWire*>(+[](TwoWire *ptr) -> char {
+        return ptr->read();
+    }, &Wire);
+
     for (uint8_t wait = 20; wait != 0; --wait, delay(50))
     {
         if (Wire.available())
         {
-            auto rbuf = RBufferHelper(std::bind(&TwoWire::read, Wire));
-
             g_pm.batteryVolts = rbuf.getBytes(2);
             g_pm.calibration = rbuf.getBytes(2);
             g_pm.boardTime = rbuf.getBytes(4);
@@ -114,6 +119,7 @@ void readPowerBoardCounters() {
     {
         g_pm.batteryVolts = 0;
         g_pm.calibration = 0;
+        g_pm.boardTime = 0;
         g_pm.lastOperationTimeMs = 0;
         g_pm.lastConnectionStatus = Network::Status::UNDEFINED;
         g_pm.checksumBits = 0;
@@ -138,7 +144,8 @@ void sendReport()
         Wire.beginTransmission(0x76);
         uint8_t rc = Wire.endTransmission();
 
-        if (rc == 0) {
+        if (rc == 0)
+        {
             bme.begin(0x76);
             bme.read();
             break;
@@ -147,12 +154,13 @@ void sendReport()
 
     g_pm.bmeSensorCompleteTimeMs = millis();
     g_pm.lightSensorStartTimeMs = millis();
-    
+
     for (uint8_t wait = 20; wait != 0; --wait, delay(50))
     {
         Wire.beginTransmission(0x23);
         uint8_t rc = Wire.endTransmission();
-        if (rc == 0) {
+        if (rc == 0)
+        {
             light.begin(0x23);
             light.read();
             break;
@@ -348,7 +356,7 @@ void setup()
     app::console.log("cplusplus:%u", __cplusplus);
     app::console.log("=> Start <=");
 
-    memset(const_cast<PmCounters*>(&g_pm), 0, sizeof(PmCounters));
+    memset(const_cast<PmCounters *>(&g_pm), 0, sizeof(PmCounters));
     g_pm.powerOnTimeMs = millis();
 
     app::StorageEeprom eeprom = app::StorageEeprom(128);
@@ -385,10 +393,11 @@ void setup()
         delay(100);
     }
 #endif
-    
+
     g_pm.connCompleteTimeMs = millis();
 
-    if (network.status() == Network::Status::CONNECTED) {
+    if (network.status() == Network::Status::CONNECTED)
+    {
 
         console.log("Connected SSID '%s', channel %u",
                     config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
@@ -400,7 +409,8 @@ void setup()
         currentTime = timeRfc868.getCurrentTime(REPORT_NAME);
         currentTicks = millis();
 
-        if (currentTime != TIME_INVALID) {
+        if (currentTime != TIME_INVALID)
+        {
 
             currentTime -= 2208988800; // Convert to unix epoch (1900 -> 1970)
         }
@@ -451,17 +461,17 @@ void setup()
 
 void loop()
 {
-    auto wbuf = WBufferHelper([Wire](uint8_t val) {
-        Wire.write(val);
-    });
-
     Wire.begin(PIN_SDA, PIN_SCL);
+    auto wbuf = WBufferHelper<TwoWire*>(+[](char value, TwoWire *ptr) -> void {
+        ptr->write(value);
+    }, &Wire);
 
-    if (currentTime != TIME_INVALID) {
+    if (currentTime != TIME_INVALID)
+    {
         Wire.beginTransmission(I2C_ADDR);
 
         app::secs_t delta = (app::secs_t)(millis() - currentTicks) / app::SECONDS;
-        currentTime += RANGE_LIMIT(delta, 0, 120);
+        currentTime += RANGE(delta, 0, 120);
 
         wbuf.setByte(I2C_ADDR);
         wbuf.setByte('T');
@@ -471,18 +481,20 @@ void loop()
         Wire.endTransmission();
     }
 
-    if (g_pm.connectionStatus != Network::Status::UNDEFINED) {
+    if (g_pm.connectionStatus != Network::Status::UNDEFINED)
+    {
         Wire.beginTransmission(I2C_ADDR);
-    
+
         wbuf.setByte(I2C_ADDR);
         wbuf.setByte('R');
         wbuf.setByte(static_cast<char>(g_pm.connectionStatus));
         wbuf.setByte(BYTE_XOR('R', BYTE8(static_cast<char>(g_pm.connectionStatus))));
-    
+
         Wire.endTransmission();
     }
 
-    while (true) {
+    while (true)
+    {
         Wire.beginTransmission(I2C_ADDR);
 
         wbuf.setByte(I2C_ADDR);

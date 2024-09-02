@@ -8,7 +8,7 @@ namespace app {
 
 class PinCounter : public PinBase {
 public:
-    PinCounter(uint8_t pin);
+    explicit PinCounter(uint8_t pin);
     ~PinCounter() = default;
 
     uint8_t get();

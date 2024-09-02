@@ -1,14 +1,8 @@
 #include <Arduino.h>
-
-#include <avr/wdt.h>
 #include <avr/sleep.h>
-#include <avr/power.h>
 
-#include "PinBase.h"
+#include "Byte.h"
 #include "Watchdog.h"
-
-#define RANGE(value, min, max) \
-    (((value) < (min)) ? (min) : (((value) > (max)) ? (max) : (value)))
 
 volatile bool interruptReceived = true;
 
@@ -24,16 +18,6 @@ namespace app {
 
     void Watchdog::onInterruptEvent() {
         mInterruptReceived = true;
-    }
-
-    void Watchdog::calibrate(secs_t calibrationInterval) {
-
-        auto startMs = millis();
-        this->delayInterval(calibrationInterval);
-
-        mCalibrationFactorUs =
-            (-1L) * ((static_cast<msec_t>(millis() - startMs) - calibrationInterval * MSEC_US) /
-                     calibrationInterval);
     }
 
     void Watchdog::calibrate(secs_t interval, secs_t drift) {
@@ -241,35 +225,5 @@ namespace app {
 
         return timeout;
     }
-
-    void Watchdog::delayInterval(secs_t interval) {
-
-        secs_t cyclesMs = interval + (interval * mCalibrationFactorUs) / MSEC_US;
-
-        MCUSR &= ~(bit(WDRF));
-        WDTCR |= bit(WDCE) | bit(WDE);
-        WDTCR = 0;
-
-        while (cyclesMs) {
-
-            uint8_t wdtcrBits = 0;
-            if (cyclesMs >= 8)      { cyclesMs -= 8; wdtcrBits = Watchdog::WDTCR_8S; }
-            else if (cyclesMs >= 4) { cyclesMs -= 4; wdtcrBits = Watchdog::WDTCR_4S; }
-            else if (cyclesMs >= 2) { cyclesMs -= 2; wdtcrBits = Watchdog::WDTCR_2S; }
-            else                    { cyclesMs -= 1; wdtcrBits = Watchdog::WDTCR_1S; }
-
-            WDTCR = wdtcrBits;
-            WDTCR |= bit(WDIE);
-
-            asm volatile("WDR");
-
-            mInterruptReceived = false;
-            while (mInterruptReceived == false) {}
-        }
-
-        MCUSR &= ~(bit(WDRF));
-
-        WDTCR |= (1 << WDCE) | (1 << WDE);
-        WDTCR = 0x00;
-    }
+    
 } // namespace app

@@ -16,7 +16,6 @@ public:
     };
 };
 
-
 class BodyView;
 
 class CompositeView : public View {
@@ -34,19 +33,6 @@ public:
         mViews.push_back(std::shared_ptr<T>(new T(std::move(view))));
         return *this;
     };
-
-//    template <typename T>
-//    CompositeView& add(const std::shared_ptr<T> &view_p) {
-//        
-//        console.log("CompositeView::add(shared_ptr) 0x%x", view_p.get());
-//        mViews.push_back(view_p);
-//
-//        for(const auto &view_p : mViews) {
-//            console.log("CompositeView::mViews => 0x%x", view_p.get());
-//        }
-//
-//        return *this;
-//    }
 
     virtual std::string onRequest();
     

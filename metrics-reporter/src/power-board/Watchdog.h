@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
-
 namespace app {
 
 using secs_t = signed long;
@@ -35,15 +33,12 @@ public:
 
     usec_t getCalibration();
     void setCalibration(usec_t factor);
-    void resetCalibration();
 
-    void calibrate(secs_t interval);
     void calibrate(secs_t interval, secs_t drift);
 
     void setCurrentTime(secs_t epoch, bool bCalibrateTimers = true);
     secs_t datetime();
 
-    void delayInterval(secs_t interval);
     void powerDown(secs_t interval);
     secs_t powerDown(secs_t interval, secs_t round);
 

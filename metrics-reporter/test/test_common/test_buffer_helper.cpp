@@ -3,7 +3,8 @@
 #include <ranges>
 
 #include <gtest/gtest.h>
-#include <BufferHelper.h>
+#include "RBufferHelper.h"
+#include "WBufferHelper.h"
 
 // using namespace app;
 
@@ -12,9 +13,10 @@ TEST(TestBufferWrapper, GetTest001) {
     std::iota(vect.begin(), vect.end(), 1);
 
     auto it = vect.begin();
-    auto rbuf = app::RBufferHelper([&it]() {
-        return *it++;
-    });
+    auto cb = +[](decltype(it)*it) -> char {
+        return *(*it)++;
+    };
+    auto rbuf = app::RBufferHelper<decltype(it)*>(cb, &it);
 
     EXPECT_EQ(rbuf.getByte(), 0x01);
     EXPECT_EQ(rbuf.getByte(), 0x02);
@@ -26,9 +28,10 @@ TEST(TestBufferWrapper, GetTest002) {
     std::iota(vect.begin(), vect.end(), 1);
 
     auto it = vect.begin();
-    auto rbuf = app::RBufferHelper([&it]() {
-        return *it++;
-    });
+    auto cb = +[](decltype(it)*it) -> char {
+        return *(*it)++;
+    };
+    auto rbuf = app::RBufferHelper<decltype(it)*>(cb, &it);
 
     EXPECT_EQ(rbuf.getBytes(2), 0x0201);
     EXPECT_EQ(rbuf.getBytes(2, true), 0x0304);
@@ -39,11 +42,11 @@ TEST(TestBufferWrapper, GetTest003) {
 
     std::vector<uint8_t> vect{ 0xAA, /* 1010'1010 */
                                0x55  /* 0101'0101 */ };
-
     auto it = vect.begin();
-    auto rbuf = app::RBufferHelper([&it]() {
-        return *it++;
-    });
+    auto cb = +[](decltype(it)*it) -> char {
+        return *(*it)++;
+    };
+    auto rbuf = app::RBufferHelper<decltype(it)*>(cb, &it);
 
     for (int i : std::views::iota(0, 4)) {
         EXPECT_TRUE(rbuf.getBit());
@@ -59,11 +62,11 @@ TEST(TestBufferWrapper, GetTest003) {
 TEST(TestBufferWrapper, GetTest004) {
 
     std::vector<uint8_t> vect{ 0xAB, 0xCD };
-
     auto it = vect.begin();
-    auto rbuf = app::RBufferHelper([&it]() {
-        return *it++;
-    });
+    auto cb = +[](decltype(it)*it) -> char {
+        return *(*it)++;
+    };
+    auto rbuf = app::RBufferHelper<decltype(it)*>(cb, &it);
 
     EXPECT_EQ(rbuf.getBits(4), 0x0A);
     EXPECT_EQ(rbuf.getBits(4), 0x0B);
@@ -77,9 +80,10 @@ TEST(TestBufferWrapper, SetTest001) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     wbuf.setByte(0x01);
     wbuf.setByte(0x02);
@@ -94,9 +98,10 @@ TEST(TestBufferWrapper, SetTest002) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     wbuf.setBytes(0x01020304, 4);
 
@@ -112,9 +117,10 @@ TEST(TestBufferWrapper, SetTest004) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     wbuf.setBytes(0x01020304, 4);
     wbuf.setBytes(0x05060708, 4, true);
@@ -129,9 +135,10 @@ TEST(TestBufferWrapper, SetTest005) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     wbuf.setBit(true);
     wbuf.setBit(true);
@@ -146,9 +153,10 @@ TEST(TestBufferWrapper, SetTest006) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     for (int i : std::views::iota(0, 7)) {
         wbuf.setBit(true);
@@ -165,9 +173,10 @@ TEST(TestBufferWrapper, SetTest007) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     wbuf.setBits(0xAA, 8);
     wbuf.setBits(0xBB, 4);
@@ -183,9 +192,10 @@ TEST(TestBufferWrapper, SetTest008) {
     std::fill(vect.begin(), vect.end(), 0);
 
     auto it = vect.begin();
-    auto wbuf = app::WBufferHelper([&it](char value) {
-        *it++ = value;
-    });
+    auto cb = +[](char value, decltype(it)*it) -> void {
+        *(*it)++ = value;
+    };
+    auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
     wbuf.setBits(0x0A, 4);
     wbuf.setByte(0xBC);

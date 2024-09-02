@@ -1,29 +1,21 @@
 #include <Arduino.h>
 
-#include <avr/sleep.h>
-#include <avr/power.h>
-#include <avr/wdt.h>
-
-#include "PinLed.h"
-#include "PinOutput.h"
+#include "Byte.h"
+#include <RBufferHelper.h>
+#include <WBufferHelper.h>
 #include "PinCounter.h"
+#include "PinOutput.h"
 #include "PinVolts.h"
-#include "PinI2C.h"
 #include "Watchdog.h"
-#include "Timer.h"
-#include "Checksum.h"
 
 #include "Wire.h"
 
 #define START_BLINKS (0)
 
-#define RANGE(value, min, max) \
-    (((value) < (min)) ? (min) : (((value) > (max)) ? (max) : (value)))
-
 #define I2C_ADDR 0x0A
 
-#define MAX_ACTIVE_TIME     60
-#define MIN_SLEEP_TIME      30
+#define MAX_ACTIVE_TIME     60U
+#define MIN_SLEEP_TIME      30U
 #define MAX_SLEEP_TIME      (60 * 60)
 #define DEFAULT_SLEEP_TIME  (15 * 60)
 
@@ -32,30 +24,29 @@
 using namespace app;
 
 volatile uint32_t g_uptimeDurationMs = 0;
+volatile uint16_t g_shutdownInterval = DEFAULT_SLEEP_TIME;
+volatile uint8_t g_connectionStatus = 0;
+volatile uint8_t g_checksumBits = 0;
 
 volatile bool g_isShutdownEventRcvd = false;
-volatile uint16_t g_shutdownInterval = DEFAULT_SLEEP_TIME;
-
 volatile bool g_isShutdownIntervalValid = false;
 volatile bool g_isCurrentTimeValid = false;
-
-volatile uint8_t g_connectionStatus = 0;
 volatile bool g_isConnectionStatusValid = false;
-
-volatile uint8_t g_checksumBits = 0;
 
 app::PinOutput powerPin(PIN_D4);
 
 void onEvent(int size)
 {
     (void)size;
-
     uint8_t maxAttempts = 20;
+
+    auto rbuf = RBufferHelper<TwoWire*>(+[](TwoWire *ptr) -> char {
+        return ptr->read();
+    }, &Wire);
 
     while (maxAttempts != 0)
     {
-        if ((Wire.available() == 0) ||
-            (Wire.read() != I2C_ADDR))
+        if ((Wire.available() == 0) || (Wire.read() != I2C_ADDR))
         {
             --maxAttempts;
 
@@ -65,24 +56,57 @@ void onEvent(int size)
 
         switch (Wire.read())
         {
+            case 'S':
+            {
+                if (g_isShutdownEventRcvd == false)
+                {
+                    uint8_t checksum = 0;
 
-        case 'S':
-        {
-            if (g_isShutdownEventRcvd == false)
+                    g_shutdownInterval = DEFAULT_SLEEP_TIME;
+                    g_isShutdownIntervalValid = false;
+
+                    while (maxAttempts != 0)
+                    {
+                        if (Wire.available() >= 3)
+                        {
+                            g_shutdownInterval = rbuf.getBytes(2);
+                            checksum = rbuf.getByte();
+                            break;
+                        }
+                        else
+                        {
+                            --maxAttempts;
+                            delay(30);
+                        }
+                    }
+
+                    if (checksum == BYTE_XOR('S', BYTE16(g_shutdownInterval)))
+                    {
+                        g_isShutdownEventRcvd = true;
+                        g_isShutdownIntervalValid = true;
+                    }
+                    else
+                    {
+                        g_shutdownInterval = DEFAULT_SLEEP_TIME;
+                    }
+                }
+
+                break;
+            }
+
+            case 'T': // date and time
             {
                 uint8_t checksum = 0;
+                uint32_t currentTime = 0;
 
-                g_shutdownInterval = DEFAULT_SLEEP_TIME;
-                g_isShutdownIntervalValid = false;
+                g_isCurrentTimeValid = false;
 
                 while (maxAttempts != 0)
                 {
-                    if (Wire.available() >= 3)
+                    if (Wire.available() >= 5)
                     {
-                        g_shutdownInterval = ((uint16_t)Wire.read());
-                        g_shutdownInterval |= ((uint16_t)Wire.read()) << 8;
-                        checksum = (uint8_t)Wire.read();
-
+                        currentTime = rbuf.getBytes(4);
+                        checksum = rbuf.getByte();
                         break;
                     }
                     else
@@ -92,81 +116,47 @@ void onEvent(int size)
                     }
                 }
 
-                if (checksum == CRC('S', CRC16(g_shutdownInterval)))
+                if (checksum == BYTE_XOR('T', BYTE32(currentTime)))
                 {
-                    g_isShutdownEventRcvd = true;
-                    g_isShutdownIntervalValid = true;
-                }
-                else {
-                    g_shutdownInterval = DEFAULT_SLEEP_TIME;
+                    app::Watchdog &wd = app::Watchdog::getInstance();
+                    wd.setCurrentTime(currentTime);
+
+                    g_isCurrentTimeValid = true;
                 }
             }
-
             break;
-        }
 
-        case 'T': // date and time
-        {
-            uint8_t checksum = 0;
-            uint32_t currentTime = 0;
-
-            g_isCurrentTimeValid = false;
-
-            while (maxAttempts != 0)
+            case 'R':
             {
-                if (Wire.available() >= 5)
+                uint8_t checksum = 0;
+
+                g_connectionStatus = 0;
+                g_isConnectionStatusValid = false;
+
+                while (maxAttempts != 0)
                 {
-                    currentTime = ((uint32_t)Wire.read());
-                    currentTime |= ((uint32_t)Wire.read()) << 8;
-                    currentTime |= ((uint32_t)Wire.read()) << 16;
-                    currentTime |= ((uint32_t)Wire.read()) << 24;
-
-                    checksum = (uint8_t)Wire.read();
-
-                    break;
+                    if (Wire.available() >= 2)
+                    {
+                        g_connectionStatus = rbuf.getByte();
+                        checksum = rbuf.getByte();
+                        break;
+                    }
+                    else
+                    {
+                        --maxAttempts;
+                        delay(30);
+                    }
                 }
-                else
+
+                if (checksum == BYTE_XOR('R', BYTE8(g_connectionStatus)))
                 {
-                    --maxAttempts;
-                    delay(30);
+                    g_isConnectionStatusValid = true;
                 }
             }
-
-            if (checksum == CRC('T', CRC32(currentTime)))
-            {
-                app::Watchdog &wd = app::Watchdog::getInstance();
-                wd.setCurrentTime(currentTime);
-
-                g_isCurrentTimeValid = true;
-            }
-        }
-        break;
-
-        case 'R': {
-            uint8_t checksum = 0;
-
-            g_connectionStatus = 0;
-            g_isConnectionStatusValid = false;
-
-            while (maxAttempts != 0) {
-                if (Wire.available() >= 2) {
-                    g_connectionStatus = static_cast<uint8_t>(Wire.read());
-                    checksum = static_cast<uint8_t>(Wire.read());
-                    break;
-                } else {
-                    --maxAttempts;
-                    delay(30);
-                }
-            }
-
-            if (checksum == CRC('R', CRC8(g_connectionStatus))) {
-                g_isConnectionStatusValid = true;
-            }
-        }
-        break;
-
-        default:
             break;
+
+            default:
+                break;
         }
 
         break;
@@ -182,33 +172,23 @@ void onRequest()
     uint16_t batteryVolts = (uint16_t)(batteryPin.read(9) * 1000);
     int16_t calibration = (int16_t)(wd.getCalibration() / 10);
 
-    uint32_t tempVar = 0x01;
+    auto wbuf = WBufferHelper<TwoWire*>(+[](char value, TwoWire *ptr) -> void {
+        ptr->write(value);
+    }, &Wire);
 
-    Wire.write(LOBYTE(batteryVolts));
-    Wire.write(HIBYTE(batteryVolts));
+    wbuf.setBytes(batteryVolts, 2);
+    wbuf.setBytes(calibration, 2);
+    wbuf.setBytes(currentTime, 4);
+    wbuf.setBytes(g_uptimeDurationMs, 4);
+    wbuf.setBytes(g_connectionStatus, 1);
+    wbuf.setBytes(g_checksumBits, 1);
 
-    Wire.write(LOBYTE(calibration));
-    Wire.write(HIBYTE(calibration));
-
-    Wire.write(NBYTE(0, currentTime));
-    Wire.write(NBYTE(1, currentTime));
-    Wire.write(NBYTE(2, currentTime));
-    Wire.write(NBYTE(3, currentTime));
-
-    Wire.write(NBYTE(0, g_uptimeDurationMs));
-    Wire.write(NBYTE(1, g_uptimeDurationMs));
-    Wire.write(NBYTE(2, g_uptimeDurationMs));
-    Wire.write(NBYTE(3, g_uptimeDurationMs));
-
-    Wire.write(g_connectionStatus);
-
-    Wire.write((uint8_t)g_checksumBits);
-    Wire.write((uint8_t)CRC(CRC16(batteryVolts),
-                            CRC16(calibration),
-                            CRC32(currentTime),
-                            CRC32(g_uptimeDurationMs),
-                            CRC8(g_connectionStatus),
-                            CRC8(g_checksumBits)));  
+    wbuf.setByte(BYTE_XOR(BYTE16(batteryVolts),
+                          BYTE16(calibration),
+                          BYTE32(currentTime),
+                          BYTE32(g_uptimeDurationMs),
+                          BYTE8(g_connectionStatus),
+                          BYTE8(g_checksumBits)));
 }
 
 void setup()
@@ -241,9 +221,10 @@ void loop()
     powerPin.on();
 
     uint16_t maxWaitAttemps = MAX_ACTIVE_TIME * 10;
-    while ((maxWaitAttemps-- != 0) && (!g_isShutdownEventRcvd)) {
+    while ((maxWaitAttemps-- != 0) && (!g_isShutdownEventRcvd))
+    {
         delay(100);
-    };
+    }
 
     pinMode(PB0, INPUT);
     pinMode(PB1, INPUT);
@@ -253,20 +234,19 @@ void loop()
     powerPin.off();
     g_uptimeDurationMs = static_cast<uint32_t>(millis() - startTimeMs);
 
-    if ((g_isShutdownEventRcvd == true) &&
-        (g_isShutdownIntervalValid == true)) {
-
-        uint32_t sleepDuration = RANGE(g_shutdownInterval, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
+    if ((g_isShutdownEventRcvd == true) && (g_isShutdownIntervalValid == true))
+    {
+        uint32_t sleepDuration =
+            RANGE(g_shutdownInterval, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
         wd.powerDown(sleepDuration, g_shutdownInterval);
-    } else {
-
+    }
+    else
+    {
         wd.powerDown(DEFAULT_SLEEP_TIME);
     }
 }
 
-ISR(WDT_vect, ISR_BLOCK)
-{
-}
+ISR(WDT_vect, ISR_BLOCK) {}
 
 ISR(SIG_PIN_CHANGE, ISR_BLOCK)
 {
