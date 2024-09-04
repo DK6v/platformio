@@ -18,7 +18,7 @@ bool PinBH1750::begin(uint8_t address) {
 
     (void)address;
 
-    mAvailable = mSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
+    mAvailable = mSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, address);
 
     return mAvailable;
 }

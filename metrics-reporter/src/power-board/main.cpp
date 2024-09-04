@@ -16,7 +16,7 @@
 
 #define MAX_ACTIVE_TIME     60U
 #define MIN_SLEEP_TIME      30U
-#define MAX_SLEEP_TIME      (60 * 60)
+#define MAX_SLEEP_TIME      (30 * 60)
 #define DEFAULT_SLEEP_TIME  (15 * 60)
 
 #define TIME_INVALID 0
@@ -176,12 +176,12 @@ void onRequest()
         ptr->write(value);
     }, &Wire);
 
-    wbuf.setBytes(batteryVolts, 2);
-    wbuf.setBytes(calibration, 2);
-    wbuf.setBytes(currentTime, 4);
-    wbuf.setBytes(g_uptimeDurationMs, 4);
-    wbuf.setBytes(g_connectionStatus, 1);
-    wbuf.setBytes(g_checksumBits, 1);
+    wbuf.setBytes(2, batteryVolts);
+    wbuf.setBytes(2, calibration);
+    wbuf.setBytes(4, currentTime);
+    wbuf.setBytes(4, g_uptimeDurationMs);
+    wbuf.setBytes(1, g_connectionStatus);
+    wbuf.setBytes(1, g_checksumBits);
 
     wbuf.setByte(BYTE_XOR(BYTE16(batteryVolts),
                           BYTE16(calibration),

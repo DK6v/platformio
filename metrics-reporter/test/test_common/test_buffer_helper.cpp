@@ -103,7 +103,7 @@ TEST(TestBufferWrapper, SetTest002) {
     };
     auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
-    wbuf.setBytes(0x01020304, 4);
+    wbuf.setBytes(4, 0x01020304);
 
     EXPECT_EQ(vect[0], 0x04);
     EXPECT_EQ(vect[1], 0x03);
@@ -122,8 +122,8 @@ TEST(TestBufferWrapper, SetTest004) {
     };
     auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
-    wbuf.setBytes(0x01020304, 4);
-    wbuf.setBytes(0x05060708, 4, true);
+    wbuf.setBytes(4, 0x01020304);
+    wbuf.setBytes(4, 0x05060708, true);
 
     EXPECT_EQ(0x01020304, reinterpret_cast<uint32_t*>(vect.data())[0]);
     EXPECT_EQ(0x08070605, reinterpret_cast<uint32_t*>(vect.data())[1]);
@@ -178,8 +178,8 @@ TEST(TestBufferWrapper, SetTest007) {
     };
     auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
-    wbuf.setBits(0xAA, 8);
-    wbuf.setBits(0xBB, 4);
+    wbuf.setBits(8, 0xAA);
+    wbuf.setBits(4, 0xBB);
     wbuf.flush();
 
     EXPECT_EQ(vect[0], 0xAA);
@@ -197,7 +197,7 @@ TEST(TestBufferWrapper, SetTest008) {
     };
     auto wbuf = app::WBufferHelper<decltype(it)*>(cb, &it);
 
-    wbuf.setBits(0x0A, 4);
+    wbuf.setBits(4, 0x0A);
     wbuf.setByte(0xBC);
     wbuf.spoof();
 

@@ -8,6 +8,7 @@
 
 #include "Timer.h"
 #include "TimeRFC868.h"
+#include "RBufferHelper.h"
 
 namespace app {
 
@@ -25,20 +26,21 @@ secs_t TimeRFC868::getCurrentTime(std::string name) {
     WiFiClient client;
     secs_t currentTime = TIME_INVALID;
 
-    if (0 != client.connect(mHost.c_str(), mPort)) {
+    if (client.connect(mHost.c_str(), mPort)) {
 
-        client.printf(name.c_str());
-        // client.flush(3000 /* ms */);
+        auto rbuf = RBufferHelper<WiFiClient*>(+[](WiFiClient *ptr) -> char {
+            return ptr->read();
+        }, &client);
 
-        unsigned int wait = 30;
+        client.setSync(true);
+        client.write(name.c_str());
+        client.flush(3 * SECONDS);
+
+        unsigned int wait = 100;
         while((wait--) != 0) {
 
             if (client.available() >= 4) {
-
-                currentTime = ((secs_t)client.read());
-                currentTime |= ((secs_t)client.read()) << 8;
-                currentTime |= ((secs_t)client.read()) << 16;
-                currentTime |= ((secs_t)client.read()) << 24;
+                currentTime = static_cast<secs_t>(rbuf.getBytes(4));
                 break;
             }
 

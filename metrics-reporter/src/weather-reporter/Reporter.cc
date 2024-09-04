@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <WiFiClient.h>
 
+#include "Timer.h"
 #include "Reporter.h"
 
 namespace app {
@@ -26,6 +27,8 @@ bool Reporter::send(std::string metric) {
     if (client.connect(mHost.c_str(), mPort)) {
 
         client.printf("%s\n", metric.c_str());
+        client.flush(3 * SECONDS);
+
         return client.stop(0);
     }
 

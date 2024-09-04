@@ -12,10 +12,10 @@ public:
     RBufferHelper(char(*cb)(T arg), T arg);
 
     bool getBit();
-    uint32_t getBits(int count);
+    uint32_t getBits(uint8_t count);
 
     uint8_t getByte();
-    uint32_t getBytes(int count, bool reverse = false);
+    uint32_t getBytes(uint8_t count, bool reverse = false);
 
 private:
     char (*cb_)(T);
@@ -51,7 +51,7 @@ bool RBufferHelper<T>::getBit() {
 }
 
 template <typename T>
-uint32_t RBufferHelper<T>::getBits(int count) {
+uint32_t RBufferHelper<T>::getBits(uint8_t count) {
 
     uint32_t retval = 0;
     count = RANGE(count, 1, (BYTE_LEN * sizeof(uint32_t)));
@@ -70,7 +70,7 @@ uint8_t RBufferHelper<T>::getByte() {
 }
 
 template <typename T>
-uint32_t RBufferHelper<T>::getBytes(int count, bool reverse) {
+uint32_t RBufferHelper<T>::getBytes(uint8_t count, bool reverse) {
 
     uint32_t retval = 0;
     count = RANGE(count, 1, sizeof(uint32_t));

@@ -221,6 +221,7 @@ namespace app {
             }
         }
 
+        timeout = RANGE(timeout, 0, (2 * round));
         powerDown(timeout);
 
         return timeout;

@@ -80,7 +80,6 @@ volatile struct PmCounters
 
 void readPowerBoardCounters()
 {
-
     char checksum = 0xFF;
 
     g_pm.metricsStartTimeMs = millis();
@@ -139,32 +138,15 @@ void sendReport()
     g_pm.sensorsStartTimeMs = millis();
     g_pm.bmeSensorStartTimeMs = millis();
 
-    for (uint8_t wait = 20; wait != 0; --wait, delay(50))
-    {
-        Wire.beginTransmission(0x76);
-        uint8_t rc = Wire.endTransmission();
-
-        if (rc == 0)
-        {
-            bme.begin(0x76);
-            bme.read();
-            break;
-        }
+    if (bme.begin(0x76)) {
+        bme.read();
     }
 
     g_pm.bmeSensorCompleteTimeMs = millis();
     g_pm.lightSensorStartTimeMs = millis();
 
-    for (uint8_t wait = 20; wait != 0; --wait, delay(50))
-    {
-        Wire.beginTransmission(0x23);
-        uint8_t rc = Wire.endTransmission();
-        if (rc == 0)
-        {
-            light.begin(0x23);
-            light.read();
-            break;
-        }
+    if (light.begin(0x23)) {
+        light.read();
     }
 
     g_pm.lightSensorCompleteTimeMs = millis();
@@ -362,17 +344,17 @@ void setup()
     app::StorageEeprom eeprom = app::StorageEeprom(128);
 
     Config &config = Config::getInstance()
-                         .add<std::string>(Config::ID::WIFI_AP_NAME, "elbrus-wlan")
-                         .add<std::string>(Config::ID::WIFI_AP_PASSWORD, "Peppa@Pig")
-                         .add<std::string>(Config::ID::SETUP_AP_NAME, "ESP8266")
-                         .add<std::string>(Config::ID::SETUP_AP_PASSWORD, "12345678")
-                         .add<IPAddress>(Config::ID::SETUP_AP_ADDRESS, IPAddress(192, 168, 0, 1))
-                         .add<IPAddress>(Config::ID::SETUP_AP_GATEWAY, IPAddress(192, 168, 0, 1))
-                         .add<IPAddress>(Config::ID::SETUP_AP_NW_MASK, IPAddress(255, 255, 255, 0))
-                         .add<std::vector<uint8_t>>(Config::ID::WIFI_AP_BSSID, {})
-                         .add<char>(Config::ID::WIFI_AP_CHANNEL, 0xFF)
-                         .add<IPAddress>(Config::ID::LOCAL_IP_ADDRESS, IPAddress())
-                         .read(eeprom);
+        .add<std::string>(Config::ID::WIFI_AP_NAME, "elbrus-wlan")
+        .add<std::string>(Config::ID::WIFI_AP_PASSWORD, "Peppa@Pig")
+        .add<std::string>(Config::ID::SETUP_AP_NAME, "ESP8266")
+        .add<std::string>(Config::ID::SETUP_AP_PASSWORD, "12345678")
+        .add<IPAddress>(Config::ID::SETUP_AP_ADDRESS, IPAddress(192, 168, 0, 1))
+        .add<IPAddress>(Config::ID::SETUP_AP_GATEWAY, IPAddress(192, 168, 0, 1))
+        .add<IPAddress>(Config::ID::SETUP_AP_NW_MASK, IPAddress(255, 255, 255, 0))
+        .add<std::vector<uint8_t>>(Config::ID::WIFI_AP_BSSID, {})
+        .add<char>(Config::ID::WIFI_AP_CHANNEL, 0xFF)
+        .add<IPAddress>(Config::ID::LOCAL_IP_ADDRESS, IPAddress())
+        .read(eeprom);
 
     g_pm.connStartTimeMs = millis();
     g_pm.connectionStatus = Network::Status::DISCONNECTED;
@@ -411,7 +393,6 @@ void setup()
 
         if (currentTime != TIME_INVALID)
         {
-
             currentTime -= 2208988800; // Convert to unix epoch (1900 -> 1970)
         }
 
@@ -475,7 +456,7 @@ void loop()
 
         wbuf.setByte(I2C_ADDR);
         wbuf.setByte('T');
-        wbuf.setBytes(currentTime, 4);
+        wbuf.setBytes(4, currentTime);
         wbuf.setByte(BYTE_XOR('T', BYTE32(currentTime)));
 
         Wire.endTransmission();
@@ -485,10 +466,10 @@ void loop()
     {
         Wire.beginTransmission(I2C_ADDR);
 
-        wbuf.setByte(I2C_ADDR);
-        wbuf.setByte('R');
-        wbuf.setByte(static_cast<char>(g_pm.connectionStatus));
-        wbuf.setByte(BYTE_XOR('R', BYTE8(static_cast<char>(g_pm.connectionStatus))));
+        wbuf.setBytes(1, I2C_ADDR);
+        wbuf.setBytes(1, 'R');
+        wbuf.setBytes(1, static_cast<char>(g_pm.connectionStatus));
+        wbuf.setBytes(1, BYTE_XOR('R', BYTE8(static_cast<char>(g_pm.connectionStatus))));
 
         Wire.endTransmission();
     }
@@ -497,10 +478,10 @@ void loop()
     {
         Wire.beginTransmission(I2C_ADDR);
 
-        wbuf.setByte(I2C_ADDR);
-        wbuf.setByte('S');
-        wbuf.setBytes(REPORT_INTERVAL, 2);
-        wbuf.setByte(BYTE_XOR('S', BYTE16(REPORT_INTERVAL)));
+        wbuf.setBytes(1, I2C_ADDR);
+        wbuf.setBytes(1, 'S');
+        wbuf.setBytes(2, REPORT_INTERVAL);
+        wbuf.setBytes(1, BYTE_XOR('S', BYTE16(REPORT_INTERVAL)));
 
         Wire.endTransmission();
 

@@ -12,10 +12,10 @@ public:
     WBufferHelper(void(*cb)(char, T arg), T arg);
 
     void setByte(uint8_t value);
-    void setBytes(uint32_t value, int count, bool reverse = false);
+    void setBytes(uint8_t count, uint32_t value, bool reverse = false);
 
     void setBit(bool value);
-    void setBits(uint32_t value, int count);
+    void setBits(uint8_t count, uint32_t value);
 
     void flush();
     void spoof();
@@ -38,11 +38,11 @@ WBufferHelper<T>::WBufferHelper(void(*cb)(char, T arg), T arg)
 template <typename T>
 void WBufferHelper<T>::setByte(uint8_t value) {
 
-    setBits(value, 8);
+    setBits(8, value);
 }
 
 template <typename T>
-void WBufferHelper<T>::setBytes(uint32_t value, int count, bool reverse) {
+void WBufferHelper<T>::setBytes(uint8_t count, uint32_t value, bool reverse) {
 
     count = RANGE(count, 1, sizeof(uint32_t));
 
@@ -68,7 +68,7 @@ void WBufferHelper<T>::setBit(bool value) {
 }
 
 template <typename T>
-void WBufferHelper<T>::setBits(uint32_t value, int count) {
+void WBufferHelper<T>::setBits(uint8_t count, uint32_t value) {
 
     count = RANGE(count, 1, (BYTE_LEN * sizeof(uint32_t)));
 
