@@ -15,7 +15,7 @@ ChecksumCRC32 Checksum::CRC32 = ChecksumCRC32(0x04C11DB7, 0xFFFFFFFF, 0xFFFFFFFF
 void ChecksumAlgorithm::accumulate(uint32_t* acc_p,
                                    const char value,
                                    uint16_t count) const {
-    (void)count;                                    
+    (void)count;
     accumulate(acc_p, value);
 };
 

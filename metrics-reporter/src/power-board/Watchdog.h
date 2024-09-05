@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Arduino.h>
+#include <avr/sleep.h>
+
 namespace app {
 
 using secs_t = signed long;
@@ -10,25 +13,10 @@ enum : signed long {
     DATETIME_INVALID = ~(1L << (8 * sizeof(signed long) - 1))
 };
 
-class Watchdog {
-
-private:
-    Watchdog();
-
+class WatchdogImpl {
 public:
-    Watchdog(Watchdog &) = delete;
-    Watchdog(Watchdog &&) = delete;
-    Watchdog &operator=(const Watchdog &) = delete;
-    Watchdog &operator=(const Watchdog &&) = delete;
+    WatchdogImpl();
 
-    ~Watchdog() = default;
-
-    static Watchdog &getInstance() {
-        static Watchdog wd;
-        return wd;
-    }
-
-public:
     void onInterruptEvent();
 
     usec_t getCalibration();
@@ -37,10 +25,10 @@ public:
     void calibrate(secs_t interval, secs_t drift);
 
     void setCurrentTime(secs_t epoch, bool bCalibrateTimers = true);
-    secs_t datetime();
+    virtual secs_t datetime();
 
-    void powerDown(secs_t interval);
-    secs_t powerDown(secs_t interval, secs_t round);
+    virtual void powerDown(secs_t interval);
+    virtual secs_t powerDown(secs_t interval, secs_t round);
 
 private:
     template <typename T>
@@ -75,6 +63,25 @@ private:
     secs_t mBaseDateTimeSecs;
     msec_t mBaseDateTimeMillis;
     secs_t mLastCalibrationTime;
+};
+
+class Watchdog : public WatchdogImpl {
+
+private:
+    Watchdog() {};
+
+public:
+    Watchdog(Watchdog &) = delete;
+    Watchdog(Watchdog &&) = delete;
+    Watchdog &operator=(const Watchdog &) = delete;
+    Watchdog &operator=(const Watchdog &&) = delete;
+
+    ~Watchdog() = default;
+
+    static Watchdog &getInstance() {
+        static Watchdog wd;
+        return wd;
+    }
 };
 
 } // namespace app

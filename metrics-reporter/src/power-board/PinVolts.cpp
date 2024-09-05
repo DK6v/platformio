@@ -18,9 +18,9 @@ void PinVolts::setMode(uint8_t mode) {
     analogReference(mode);
 
     switch(mode) {
-        case INTERNAL1V1:  { mVRef = 1.1;  break; }        
+        case INTERNAL1V1:  { mVRef = 1.1;  break; }
         case INTERNAL2V56: { mVRef = 2.56; break; }
-        
+
         default:
             mVRef = 5.0;
             break;
@@ -39,12 +39,12 @@ float PinVolts::read(uint8_t attempts) {
             readValue = (float)analogRead(mPin);
             break;
         }
-        
+
         case 2: {
             readValue = (float)analogRead(mPin);
             break;
         }
-        
+
         default: {
 
             float readValues[attempts] = {};
@@ -60,7 +60,7 @@ float PinVolts::read(uint8_t attempts) {
             {
                 readValue += readValues[ix];
                 ++numOfReadings;
-            } 
+            }
             readValue /= numOfReadings;
 
             break;

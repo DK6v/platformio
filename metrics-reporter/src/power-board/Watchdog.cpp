@@ -1,6 +1,3 @@
-#include <Arduino.h>
-#include <avr/sleep.h>
-
 #include "Byte.h"
 #include "Watchdog.h"
 
@@ -8,7 +5,7 @@ volatile bool interruptReceived = true;
 
 namespace app {
 
-    Watchdog::Watchdog()
+    WatchdogImpl::WatchdogImpl()
         : mCalibrationFactorUs(0L),
           mNiceCalibrationCounter(0),
           mBaseDateTimeSecs(DATETIME_INVALID),
@@ -16,11 +13,11 @@ namespace app {
           mLastCalibrationTime(DATETIME_INVALID)
     {}
 
-    void Watchdog::onInterruptEvent() {
+    void WatchdogImpl::onInterruptEvent() {
         mInterruptReceived = true;
     }
 
-    void Watchdog::calibrate(secs_t interval, secs_t drift) {
+    void WatchdogImpl::calibrate(secs_t interval, secs_t drift) {
 
         if (drift != 0) {
 
@@ -75,17 +72,17 @@ namespace app {
         }
     }
 
-    usec_t Watchdog::getCalibration() {
+    usec_t WatchdogImpl::getCalibration() {
 
         return mCalibrationFactorUs;
     }
 
-    void Watchdog::setCalibration(usec_t factor) {
+    void WatchdogImpl::setCalibration(usec_t factor) {
 
         this->mCalibrationFactorUs = RANGE(factor, -250000, 250000);
     }
 
-    void Watchdog::setCurrentTime(secs_t epoch, bool bCalibrateTimers) {
+    void WatchdogImpl::setCurrentTime(secs_t epoch, bool bCalibrateTimers) {
 
         if (bCalibrateTimers == true) {
 
@@ -104,7 +101,7 @@ namespace app {
         mBaseDateTimeMillis = millis();
     }
 
-    secs_t Watchdog::datetime() {
+    secs_t WatchdogImpl::datetime() {
 
         if (mBaseDateTimeSecs != DATETIME_INVALID) {
 
@@ -114,18 +111,18 @@ namespace app {
         return DATETIME_INVALID;
     }
 
-    void Watchdog::powerDown(secs_t interval) {
+    void WatchdogImpl::powerDown(secs_t interval) {
 
         volatile msec_t durationMs = interval * SECOND_MS;
-        
-        // Apply calibration        
-        durationMs += (interval * mCalibrationFactorUs) / MSEC_US;
+
+        // Apply calibration
+        durationMs = durationMs + (interval * mCalibrationFactorUs) / MSEC_US;
         durationMs = RANGE(durationMs, 0, 60 * MINUTE_MS);
 
         mBaseDateTimeSecs = datetime();
 
         // Disable ADC, reduce power usage 0.26 mA => ~0.01 mA.
-        ADCSRA &= ~bit(ADEN); 
+        ADCSRA &= ~bit(ADEN);
 
         // Allow system sleep and set sleep mode
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -137,12 +134,12 @@ namespace app {
 
             volatile uint8_t wdtcrBits = 0;
 
-            if (durationMs >= 8000)      { durationMs -= 8000; wdtcrBits = Watchdog::WDTCR_8S; }
-            else if (durationMs >= 4000) { durationMs -= 4000; wdtcrBits = Watchdog::WDTCR_4S; }
-            else if (durationMs >= 2000) { durationMs -= 2000; wdtcrBits = Watchdog::WDTCR_2S; }
-            else if (durationMs >= 1000) { durationMs -= 1000; wdtcrBits = Watchdog::WDTCR_1S; }
-            else if (durationMs >= 500)  { durationMs -= 500;  wdtcrBits = Watchdog::WDTCR_500MS; }
-            else if (durationMs >= 250)  { durationMs -= 250;  wdtcrBits = Watchdog::WDTCR_250MS; }
+            if (durationMs >= 8000)      { durationMs -= 8000; wdtcrBits = WatchdogImpl::WDTCR_8S; }
+            else if (durationMs >= 4000) { durationMs -= 4000; wdtcrBits = WatchdogImpl::WDTCR_4S; }
+            else if (durationMs >= 2000) { durationMs -= 2000; wdtcrBits = WatchdogImpl::WDTCR_2S; }
+            else if (durationMs >= 1000) { durationMs -= 1000; wdtcrBits = WatchdogImpl::WDTCR_1S; }
+            else if (durationMs >= 500)  { durationMs -= 500;  wdtcrBits = WatchdogImpl::WDTCR_500MS; }
+            else if (durationMs >= 250)  { durationMs -= 250;  wdtcrBits = WatchdogImpl::WDTCR_250MS; }
             else                         { break; }
 
             do {
@@ -167,7 +164,7 @@ namespace app {
         WDTCR = 0;
 
         // Enable ADC
-        ADCSRA |= bit(ADEN); 
+        ADCSRA |= bit(ADEN);
 
         // Enables interrupts
         sei();
@@ -179,7 +176,7 @@ namespace app {
         }
     }
 
-    secs_t Watchdog::powerDown(secs_t interval, secs_t round) {
+    secs_t WatchdogImpl::powerDown(secs_t interval, secs_t round) {
 
         secs_t currentTime = datetime();
         secs_t timeout = interval;
@@ -190,7 +187,7 @@ namespace app {
             secs_t shift = nextTime % round;
 
             /* 1: ---r-----C------------N----------r-----------
-             *       |     |<---------->|          | : interval
+             *       |     |<---------->|          | : intervalr
              *       |<--------------------------->| : round
              *       |<---------------->|          | : shift
              *             |<=====================>| : TIMEOUT
@@ -226,5 +223,5 @@ namespace app {
 
         return timeout;
     }
-    
+
 } // namespace app

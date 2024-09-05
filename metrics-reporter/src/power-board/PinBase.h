@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-/*   D5/A0/ADC0/PB5 RESET  -|1*  8|-  VCC  
+/*   D5/A0/ADC0/PB5 RESET  -|1*  8|-  VCC
  *   D3/A3/ADC1/PB3        -|2   7|-  SCL/SCK    D2/A1/PB2
  *   D4/A2/ADC2/PB4        -|3   6|-  MISO       D1/PB1
  *                  GND    -|4   5|-  MOSI SDA   D0/PB0

@@ -20,7 +20,7 @@ public:
     Controller& addRouteHandler(std::string path,
                                 std::shared_ptr<Route> route_p);
 
-    void sendResponse(unsigned int code, const std::string &response); 
+    void sendResponse(unsigned int code, const std::string &response);
 
 private:
     ESP8266WebServer *mServer_p;

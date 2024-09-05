@@ -19,7 +19,7 @@ public:
     PinI2CListener& operator=(const PinI2CListener &&) = delete;
 
     ~PinI2CListener() = default;
-  
+
     static PinI2CListener& getInstance() {
         static PinI2CListener listener;
         return listener;

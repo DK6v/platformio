@@ -164,7 +164,7 @@ ByteBuffer::iterator ConfigParameter<int>::write(ByteBuffer::iterator &it) {
         *nextIt++ = NBYTE(ix, mValue);
     }
 
-    *nextIt++ = checksum; 
+    *nextIt++ = checksum;
 
     console.log("CFG => W [%02d]: %d, CS: 0x%X", mId, mValue, checksum);
 

@@ -182,7 +182,7 @@ ConfigParameter<std::vector<T>>::write(ByteBuffer::iterator &it) {
     }
 
     *nextIt++ = checksum;
-    
+
     console.format("CFG => W [%02d]:", mId);
     for (auto &value: mValue) {
         console.format(" %x", value);

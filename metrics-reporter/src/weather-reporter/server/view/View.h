@@ -35,7 +35,7 @@ public:
     };
 
     virtual std::string onRequest();
-    
+
 protected:
     std::list<std::shared_ptr<View>> mViews;
 };

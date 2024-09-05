@@ -30,7 +30,7 @@ void Route::handleRequest() {
 
     if (mView_p != nullptr) {
         console.log("view is not null");
-        mController_p->sendResponse(200, mView_p->onRequest());        
+        mController_p->sendResponse(200, mView_p->onRequest());
     }
     else {
 
@@ -41,6 +41,6 @@ void Route::handleRequest() {
 	</body>\
 </html>";
 
-        mController_p->sendResponse(200, postForms);        
+        mController_p->sendResponse(200, postForms);
     }
 }

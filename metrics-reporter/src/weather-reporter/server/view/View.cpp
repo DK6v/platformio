@@ -23,7 +23,7 @@ std::string HtmlView::onRequest() {
     std::string response;
 
     console.log("HtmlView");
-   
+
     response += "<!DOCTYPE html>";
     response += "<html>";
 

@@ -11,7 +11,7 @@ void swap(T &a, T  &b) {
     a = b;
     b = tmp;
 }
- 
+
 template <typename T>
 void bsort(T *data, uint8_t size) {
 
@@ -51,7 +51,7 @@ void qsort(T *data, size_t size) {
             if (lx >= rx) {
                 break;
             }
-            
+
             swap(data[lx++], data[rx--]);
         }
 

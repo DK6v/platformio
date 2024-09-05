@@ -11,7 +11,7 @@ TEST(TestChecksum, XOR) {
     EXPECT_EQ(checkVal,
         app::Checksum(app::Checksum::XOR)
             .calculate(vect.cbegin(), vect.cend()));
-    
+
     EXPECT_EQ(checkVal,
         app::Checksum(app::Checksum::XOR)
             .calculate(reinterpret_cast<char *>(vect.data()), vect.size()));
