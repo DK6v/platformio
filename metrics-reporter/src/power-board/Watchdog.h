@@ -25,7 +25,7 @@ public:
     void calibrate(secs_t interval, secs_t drift);
 
     void setCurrentTime(secs_t epoch, bool bCalibrateTimers = true);
-    virtual secs_t datetime();
+    virtual secs_t getCurrentTime();
 
     virtual void powerDown(secs_t interval);
     virtual secs_t powerDown(secs_t interval, secs_t round);

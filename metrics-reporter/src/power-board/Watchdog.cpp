@@ -1,6 +1,8 @@
 #include "Byte.h"
 #include "Watchdog.h"
 
+#include <stdio.h>
+
 volatile bool interruptReceived = true;
 
 namespace app {
@@ -86,7 +88,7 @@ namespace app {
 
         if (bCalibrateTimers == true) {
 
-            secs_t currentTime = datetime();
+            secs_t currentTime = getCurrentTime();
 
             if ((currentTime != DATETIME_INVALID) &&
                 (mLastCalibrationTime != DATETIME_INVALID)) {
@@ -101,7 +103,7 @@ namespace app {
         mBaseDateTimeMillis = millis();
     }
 
-    secs_t WatchdogImpl::datetime() {
+    secs_t WatchdogImpl::getCurrentTime() {
 
         if (mBaseDateTimeSecs != DATETIME_INVALID) {
 
@@ -113,13 +115,13 @@ namespace app {
 
     void WatchdogImpl::powerDown(secs_t interval) {
 
-        volatile msec_t durationMs = interval * SECOND_MS;
+        msec_t durationMs = interval * SECOND_MS;
 
         // Apply calibration
         durationMs = durationMs + (interval * mCalibrationFactorUs) / MSEC_US;
         durationMs = RANGE(durationMs, 0, 60 * MINUTE_MS);
 
-        mBaseDateTimeSecs = datetime();
+        mBaseDateTimeSecs = getCurrentTime();
 
         // Disable ADC, reduce power usage 0.26 mA => ~0.01 mA.
         ADCSRA &= ~bit(ADEN);
@@ -132,7 +134,7 @@ namespace app {
 
         while (durationMs > 0) {
 
-            volatile uint8_t wdtcrBits = 0;
+            uint8_t wdtcrBits = 0;
 
             if (durationMs >= 8000)      { durationMs -= 8000; wdtcrBits = WatchdogImpl::WDTCR_8S; }
             else if (durationMs >= 4000) { durationMs -= 4000; wdtcrBits = WatchdogImpl::WDTCR_4S; }
@@ -140,22 +142,17 @@ namespace app {
             else if (durationMs >= 1000) { durationMs -= 1000; wdtcrBits = WatchdogImpl::WDTCR_1S; }
             else if (durationMs >= 500)  { durationMs -= 500;  wdtcrBits = WatchdogImpl::WDTCR_500MS; }
             else if (durationMs >= 250)  { durationMs -= 250;  wdtcrBits = WatchdogImpl::WDTCR_250MS; }
-            else                         { break; }
+            else                         { durationMs = 0; break; }
 
-            do {
-                // Set WDCE to modify WDTCR register
-                WDTCR |= bit(WDCE);
-                // Set WDIE to enable watchdog interupt and set sleep duration.
-                WDTCR = bit(WDIE) | wdtcrBits;
+            // Set WDCE to modify WDTCR register
+            WDTCR |= bit(WDCE);
+            // Set WDIE to enable watchdog interupt and set sleep duration.
+            WDTCR = bit(WDIE) | wdtcrBits;
 
-                this->mInterruptReceived = false;
-
-                sleep_enable();
-                sei();
-                sleep_cpu();
-                sleep_disable();
-            }
-            while (this->mInterruptReceived != false);
+            sleep_enable();
+            sei();
+            sleep_cpu();
+            sleep_disable();
         }
 
         // Set WDCE to modify WDTCR register
@@ -178,49 +175,21 @@ namespace app {
 
     secs_t WatchdogImpl::powerDown(secs_t interval, secs_t round) {
 
-        secs_t currentTime = datetime();
+        secs_t currentTime = getCurrentTime();
         secs_t timeout = interval;
 
         if (currentTime != DATETIME_INVALID) {
 
             secs_t nextTime = currentTime + interval;
-            secs_t shift = nextTime % round;
+            nextTime += round - nextTime % round;
 
-            /* 1: ---r-----C------------N----------r-----------
-             *       |     |<---------->|          | : intervalr
-             *       |<--------------------------->| : round
-             *       |<---------------->|          | : shift
-             *             |<=====================>| : TIMEOUT
-             */
-            if (currentTime > (nextTime - shift)) {
-
-                timeout = interval + (round - shift);
-            }
-            /* 2: ---C---r----------N----r---------------r----
-             *       |<------------>|    |          : interval
-             *       |   |<------------->|          : round
-             *       |   |<-------->|    |          : shift
-             *       |<=================>|          : TIMEOUT
-             */
-            else if (shift > round / 2) {
-
-                timeout = interval + (round - shift);
-            }
-            /* 3: ---C----------r---N-----------r-------------
-             *       |<------------>|    |          : interval
-             *       |          |<------------->|   : round
-             *       |          |<->|    |          : shift
-             *       |<=================>|          : TIMEOUT
-             */
-            else {
-
-                timeout = interval - shift;
+            timeout = nextTime - currentTime;
+            if (timeout - interval > round / 2) {
+                timeout -= round;
             }
         }
 
-        timeout = RANGE(timeout, 0, (2 * round));
         powerDown(timeout);
-
         return timeout;
     }
 

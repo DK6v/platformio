@@ -166,7 +166,7 @@ void onEvent(int size)
 void onRequest()
 {
     Watchdog &wd = Watchdog::getInstance();
-    secs_t currentTime = wd.datetime();
+    secs_t currentTime = wd.getCurrentTime();
 
     app::PinVolts batteryPin(PIN_D3, 9.9, 43.0);
     uint16_t batteryVolts = (uint16_t)(batteryPin.read(9) * 1000);
