@@ -34,17 +34,14 @@ secs_t TimeRFC868::getCurrentTime(std::string name) {
 
         client.setSync(true);
         client.write(name.c_str());
-        client.flush(3 * SECONDS);
 
-        unsigned int wait = 100;
+        unsigned int wait = 300;
         while((wait--) != 0) {
-
+            delay(10);
             if (client.available() >= 4) {
                 currentTime = static_cast<secs_t>(rbuf.getBytes(4));
                 break;
             }
-
-            delay(100);
         }
 
         client.stop();

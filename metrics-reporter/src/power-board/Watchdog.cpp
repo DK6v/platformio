@@ -175,22 +175,27 @@ namespace app {
 
     secs_t WatchdogImpl::powerDown(secs_t interval, secs_t round) {
 
-        secs_t currentTime = getCurrentTime();
-        secs_t timeout = interval;
+        if (interval > 0) {
 
-        if (currentTime != DATETIME_INVALID) {
+            secs_t currentTime = getCurrentTime();
+            secs_t timeout = interval;
 
-            secs_t nextTime = currentTime + interval;
-            nextTime += round - nextTime % round;
+            if ((round > 0) && (currentTime != DATETIME_INVALID)) {
 
-            timeout = nextTime - currentTime;
-            if (timeout - interval > round / 2) {
-                timeout -= round;
+                secs_t nextTime = currentTime + interval;
+                nextTime += round - nextTime % round;
+
+                timeout = nextTime - currentTime;
+                if (timeout - interval > round / 2) {
+                    timeout -= round;
+                }
             }
-        }
 
-        powerDown(timeout);
-        return timeout;
+            powerDown(timeout);
+            return timeout;
+        }
+    
+        return 0;
     }
 
 } // namespace app

@@ -10,21 +10,19 @@
 
 #include "Wire.h"
 
-#define START_BLINKS (0)
+#define I2C_ADDR            0x0A
 
-#define I2C_ADDR 0x0A
-
-#define MAX_ACTIVE_TIME     60U
-#define MIN_SLEEP_TIME      30U
-#define MAX_SLEEP_TIME      (30 * 60)
-#define DEFAULT_SLEEP_TIME  (15 * 60)
-
-#define TIME_INVALID 0
+#define TIME_INVALID        0
+#define MAX_ACTIVE_TIME     60
+#define MIN_SLEEP_TIME      60
+#define MAX_SLEEP_TIME      3600
+#define DEFAULT_SLEEP_TIME  300
 
 using namespace app;
 
-volatile uint32_t g_uptimeDurationMs = 0;
 volatile uint16_t g_shutdownInterval = DEFAULT_SLEEP_TIME;
+volatile uint16_t g_shutdownTimeRound = 0;
+volatile uint32_t g_uptimeDurationMs = 0;
 volatile uint8_t g_connectionStatus = 0;
 volatile uint8_t g_checksumBits = 0;
 
@@ -62,32 +60,30 @@ void onEvent(int size)
                 {
                     uint8_t checksum = 0;
 
-                    g_shutdownInterval = DEFAULT_SLEEP_TIME;
+                    g_isShutdownEventRcvd = true;
                     g_isShutdownIntervalValid = false;
 
-                    while (maxAttempts != 0)
+                    if (rbuf.getBit())
                     {
-                        if (Wire.available() >= 3)
-                        {
-                            g_shutdownInterval = rbuf.getBytes(2);
-                            checksum = rbuf.getByte();
-                            break;
-                        }
-                        else
-                        {
-                            --maxAttempts;
-                            delay(30);
-                        }
+                        g_shutdownInterval = rbuf.getBits(15);
                     }
 
-                    if (checksum == BYTE_XOR('S', BYTE16(g_shutdownInterval)))
+                    if (rbuf.getBit())
                     {
-                        g_isShutdownEventRcvd = true;
+                        g_shutdownTimeRound = rbuf.getBits(15);
+                    }
+
+                    checksum = rbuf.getByte();
+
+                    if (checksum == BYTE_XOR('S', BYTE_XOR(BYTE16(g_shutdownInterval),
+                                                           BYTE16(g_shutdownTimeRound))))
+                    {
                         g_isShutdownIntervalValid = true;
                     }
                     else
                     {
                         g_shutdownInterval = DEFAULT_SLEEP_TIME;
+                        g_shutdownTimeRound = 0;
                     }
                 }
 
@@ -226,19 +222,22 @@ void loop()
         delay(100);
     }
 
-    pinMode(PB0, INPUT);
-    pinMode(PB1, INPUT);
-    pinMode(PB2, INPUT);
-    pinMode(PB3, INPUT);
-
     powerPin.off();
     g_uptimeDurationMs = static_cast<uint32_t>(millis() - startTimeMs);
 
-    if ((g_isShutdownEventRcvd == true) && (g_isShutdownIntervalValid == true))
+    pinMode(PB0, INPUT);
+    pinMode(PB1, INPUT);
+    pinMode(PB2, INPUT);
+    pinMode(PB3, INPUT);  
+
+    if (g_isShutdownIntervalValid == true)
     {
-        uint32_t sleepDuration =
+        uint16_t shutdownInterval =
             RANGE(g_shutdownInterval, MIN_SLEEP_TIME, MAX_SLEEP_TIME);
-        wd.powerDown(sleepDuration, g_shutdownInterval);
+        uint16_t shutdownTimeRound =
+            RANGE(g_shutdownTimeRound, 0, MAX_SLEEP_TIME);
+
+        wd.powerDown(shutdownInterval, shutdownTimeRound);
     }
     else
     {

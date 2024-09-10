@@ -23,13 +23,15 @@
 #define I2C_ADDR 0x0A
 
 #ifdef BUILD_DEBUG
-#define REPORT_NAME "test"
-#define SENSOR_NAME "test"
-#define REPORT_INTERVAL 30
+#define REPORT_NAME         "test"
+#define SENSOR_NAME         "test"
+#define REPORT_INTERVAL     30
+#define REPORT_ROUND_TIME   30
 #else
-#define REPORT_NAME "weather"
-#define SENSOR_NAME "bme280"
-#define REPORT_INTERVAL 900
+#define REPORT_NAME         "weather"
+#define SENSOR_NAME         "bme280"
+#define REPORT_INTERVAL     900
+#define REPORT_ROUND_TIME   300
 #endif
 
 using namespace app;
@@ -480,8 +482,12 @@ void loop()
 
         wbuf.setBytes(1, I2C_ADDR);
         wbuf.setBytes(1, 'S');
-        wbuf.setBytes(2, REPORT_INTERVAL);
-        wbuf.setBytes(1, BYTE_XOR('S', BYTE16(REPORT_INTERVAL)));
+        wbuf.setBit(true);
+        wbuf.setBits(15, REPORT_INTERVAL);
+        wbuf.setBit(true);
+        wbuf.setBits(15, REPORT_ROUND_TIME);
+        wbuf.setBytes(1, BYTE_XOR('S', BYTE_XOR(BYTE16(REPORT_INTERVAL),
+                                                BYTE16(REPORT_ROUND_TIME))));
 
         Wire.endTransmission();
 
