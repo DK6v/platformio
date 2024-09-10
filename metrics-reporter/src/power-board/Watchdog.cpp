@@ -115,7 +115,7 @@ namespace app {
 
     void WatchdogImpl::powerDown(secs_t interval) {
 
-        msec_t durationMs = interval * SECOND_MS;
+        uint32_t durationMs = interval * SECOND_MS;
 
         // Apply calibration
         durationMs = durationMs + (interval * mCalibrationFactorUs) / MSEC_US;
@@ -132,7 +132,7 @@ namespace app {
         // Disable interrupts
         cli();
 
-        while (durationMs > 0) {
+        while (durationMs != 0) {
 
             uint8_t wdtcrBits = 0;
 

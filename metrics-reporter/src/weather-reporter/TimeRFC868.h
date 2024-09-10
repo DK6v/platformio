@@ -18,7 +18,8 @@ public:
     TimeRFC868(const std::string& host, uint16_t port);
     ~TimeRFC868() = default;
 
-    secs_t getCurrentTime(std::string name);
+    secs_t datetime(std::string name);
+    secs_t epoch(std::string name);
 
 private:
     enum Status {

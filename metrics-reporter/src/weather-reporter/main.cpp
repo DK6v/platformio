@@ -31,7 +31,7 @@
 #define REPORT_NAME         "weather"
 #define SENSOR_NAME         "bme280"
 #define REPORT_INTERVAL     900
-#define REPORT_ROUND_TIME   300
+#define REPORT_ROUND_TIME   900
 #endif
 
 using namespace app;
@@ -56,10 +56,10 @@ volatile secs_t sleepInterval = REPORT_INTERVAL;
 volatile struct PmCounters
 {
     // Power board metrics
+    uint16_t restartCounter;
     int16_t batteryVolts;
     int16_t calibration;
     int16_t checksumBits;
-    uint32_t boardTime;
     uint32_t lastOperationTimeMs;
     Network::Status lastConnectionStatus;
 
@@ -88,7 +88,7 @@ void readPowerBoardCounters()
 
     Wire.begin(PIN_SDA, PIN_SCL);
     Wire.beginTransmission(I2C_ADDR);
-    Wire.requestFrom(I2C_ADDR, 15);
+    Wire.requestFrom(I2C_ADDR, 13);
 
     auto rbuf = RBufferHelper<TwoWire*>(+[](TwoWire *ptr) -> char {
         return ptr->read();
@@ -98,29 +98,28 @@ void readPowerBoardCounters()
     {
         if (Wire.available())
         {
+            g_pm.restartCounter = rbuf.getBytes(2);
             g_pm.batteryVolts = rbuf.getBytes(2);
             g_pm.calibration = rbuf.getBytes(2);
-            g_pm.boardTime = rbuf.getBytes(4);
             g_pm.lastOperationTimeMs = rbuf.getBytes(4);
             g_pm.lastConnectionStatus = static_cast<Network::Status>(rbuf.getByte());
             g_pm.checksumBits = rbuf.getByte();
 
             checksum = rbuf.getByte();
-
             break;
         }
     }
 
-    if (checksum != BYTE_XOR(BYTE16(g_pm.batteryVolts),
+    if (checksum != BYTE_XOR(BYTE16(g_pm.restartCounter),
+                             BYTE16(g_pm.batteryVolts),
                              BYTE16(g_pm.calibration),
-                             BYTE32(g_pm.boardTime),
                              BYTE32(g_pm.lastOperationTimeMs),
                              BYTE8(static_cast<uint8_t>(g_pm.lastConnectionStatus)),
                              BYTE8(g_pm.checksumBits)))
     {
+        g_pm.restartCounter = 0;
         g_pm.batteryVolts = 0;
         g_pm.calibration = 0;
-        g_pm.boardTime = 0;
         g_pm.lastOperationTimeMs = 0;
         g_pm.lastConnectionStatus = Network::Status::UNDEFINED;
         g_pm.checksumBits = 0;
@@ -134,8 +133,6 @@ void readPowerBoardCounters()
 void sendReport()
 {
     std::string fields;
-
-    readPowerBoardCounters();
 
     g_pm.sensorsStartTimeMs = millis();
     g_pm.bmeSensorStartTimeMs = millis();
@@ -308,14 +305,11 @@ void sendReport()
         fields += std::to_string(g_pm.checksumBits);
     }
 
-#ifdef BUILD_DEBUG
-    if (g_pm.boardTime != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "boardTime=";
-        fields += std::to_string(g_pm.boardTime);
-    }
+    fields += (fields.length() != 0) ? "," : "";
+    fields += "restartCounter=";
+    fields += std::to_string(g_pm.restartCounter);
 
+#ifdef BUILD_DEBUG
     fields += (fields.length() != 0) ? "," : "";
     fields += "debug=true";
 #endif
@@ -358,11 +352,17 @@ void setup()
         .add<IPAddress>(Config::ID::LOCAL_IP_ADDRESS, IPAddress())
         .read(eeprom);
 
+    readPowerBoardCounters();
+
     g_pm.connStartTimeMs = millis();
     g_pm.connectionStatus = Network::Status::DISCONNECTED;
 
 #ifdef NW_CONNECT_FAST
-    g_pm.connectionStatus = network.connect();
+    if (g_pm.restartCounter == 0) {
+        g_pm.connectionStatus = network.connect(Network::Type::SLOW);
+    } else {
+        g_pm.connectionStatus = network.connect(Network::Type::FAST);
+    }
 #else
     WiFi.begin(
         config.get<std::string>(Config::ID::WIFI_AP_NAME).c_str(),
@@ -390,13 +390,8 @@ void setup()
         console.log("IP address: %s",
                     WiFi.localIP().toString().c_str());
 
-        currentTime = timeRfc868.getCurrentTime(REPORT_NAME);
+        currentTime = timeRfc868.epoch(REPORT_NAME);
         currentTicks = millis();
-
-        if (currentTime != TIME_INVALID)
-        {
-            currentTime -= 2208988800; // Convert to unix epoch (1900 -> 1970)
-        }
 
         console.log("Current time: %llu, ticks: %lu", currentTime, currentTicks);
 

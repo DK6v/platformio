@@ -12,7 +12,7 @@ public:
     enum class Type;
     enum class Status;
 
-    Status connect();
+    Status connect(Network::Type type);
     Status connect_w_tmo(Type type, uint16_t waitSecs);
 
     void disconnect();

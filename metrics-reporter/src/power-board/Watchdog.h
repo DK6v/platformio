@@ -5,13 +5,11 @@
 
 namespace app {
 
-using secs_t = signed long;
-using msec_t = signed long;
-using usec_t = signed long;
+using secs_t = int32_t;
+using msec_t = int32_t;
+using usec_t = int32_t;
 
-enum : signed long {
-    DATETIME_INVALID = ~(1L << (8 * sizeof(signed long) - 1))
-};
+const secs_t DATETIME_INVALID = ~(1L << (8 * sizeof(uint32_t) - 1));
 
 class WatchdogImpl {
 public:

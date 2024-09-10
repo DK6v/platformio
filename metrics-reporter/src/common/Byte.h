@@ -126,13 +126,21 @@
  */
 #define BYTE_XOR(...) VFUNC(BYTE_XOR, __VA_ARGS__)
 #define BYTE_XOR_1(_n) ((_n) & 0xFF)
-#define BYTE_XOR_2(_n, ...) ((_n) ^ BYTE_XOR_1(__VA_ARGS__))
-#define BYTE_XOR_3(_n, ...) ((_n) ^ BYTE_XOR_2(__VA_ARGS__))
-#define BYTE_XOR_4(_n, ...) ((_n) ^ BYTE_XOR_3(__VA_ARGS__))
-#define BYTE_XOR_5(_n, ...) ((_n) ^ BYTE_XOR_4(__VA_ARGS__))
-#define BYTE_XOR_6(_n, ...) ((_n) ^ BYTE_XOR_5(__VA_ARGS__))
-#define BYTE_XOR_7(_n, ...) ((_n) ^ BYTE_XOR_6(__VA_ARGS__))
-#define BYTE_XOR_8(_n, ...) ((_n) ^ BYTE_XOR_7(__VA_ARGS__))
+#define BYTE_XOR_2(_n, ...)  ((_n) ^ BYTE_XOR_1(__VA_ARGS__))
+#define BYTE_XOR_3(_n, ...)  ((_n) ^ BYTE_XOR_2(__VA_ARGS__))
+#define BYTE_XOR_4(_n, ...)  ((_n) ^ BYTE_XOR_3(__VA_ARGS__))
+#define BYTE_XOR_5(_n, ...)  ((_n) ^ BYTE_XOR_4(__VA_ARGS__))
+#define BYTE_XOR_6(_n, ...)  ((_n) ^ BYTE_XOR_5(__VA_ARGS__))
+#define BYTE_XOR_7(_n, ...)  ((_n) ^ BYTE_XOR_6(__VA_ARGS__))
+#define BYTE_XOR_8(_n, ...)  ((_n) ^ BYTE_XOR_7(__VA_ARGS__))
+#define BYTE_XOR_9(_n, ...)  ((_n) ^ BYTE_XOR_8(__VA_ARGS__))
+#define BYTE_XOR_10(_n, ...) ((_n) ^ BYTE_XOR_9(__VA_ARGS__))
+#define BYTE_XOR_11(_n, ...) ((_n) ^ BYTE_XOR_10(__VA_ARGS__))
+#define BYTE_XOR_12(_n, ...) ((_n) ^ BYTE_XOR_11(__VA_ARGS__))
+#define BYTE_XOR_13(_n, ...) ((_n) ^ BYTE_XOR_12(__VA_ARGS__))
+#define BYTE_XOR_14(_n, ...) ((_n) ^ BYTE_XOR_13(__VA_ARGS__))
+#define BYTE_XOR_15(_n, ...) ((_n) ^ BYTE_XOR_14(__VA_ARGS__))
+#define BYTE_XOR_16(_n, ...) ((_n) ^ BYTE_XOR_15(__VA_ARGS__))
 
 /* Expand the integer to a comma-separated list of bytes:
  *   BYTE8(char), BYTE16(short), BYTE32(integer).
@@ -142,9 +150,9 @@
  *   BYTE32(0x04030201) => 0x01, 0x02, 0x03, 0x03
  */
 
-#define BYTE8(_n)  BYTE_XOR(NBYTE(0, (_n)))
-#define BYTE16(_n) BYTE_XOR(NBYTE(0, (_n)), NBYTE(1, (_n)))
-#define BYTE32(_n) BYTE_XOR(NBYTE(0, (_n)), NBYTE(1, (_n)), NBYTE(2, (_n)), NBYTE(3, (_n)))
+#define BYTE8(_n)  NBYTE(0, (_n))
+#define BYTE16(_n) NBYTE(0, (_n)), NBYTE(1, (_n))
+#define BYTE32(_n) NBYTE(0, (_n)), NBYTE(1, (_n)), NBYTE(2, (_n)), NBYTE(3, (_n))
 
 /* Macro to limit the value within a certain range:
  *   MIN(_number, _min)

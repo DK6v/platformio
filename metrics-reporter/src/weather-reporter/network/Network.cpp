@@ -31,7 +31,7 @@ Network::Status Network::connect_w_tmo(Network::Type type, uint16_t waitSecs) {
     return rc;
 }
 
-Network::Status Network::connect() {
+Network::Status Network::connect(Network::Type type) {
 
     auto rc = Status::UNDEFINED;
     Config &config = Config::getInstance();
@@ -39,10 +39,14 @@ Network::Status Network::connect() {
     unsigned long startTimeMs = millis();
 
 #ifdef NW_CONNECT_FAST
-    if (config.get<IPAddress>(Config::ID::LOCAL_IP_ADDRESS).isSet()) {
+
+    if ((type == Type::FAST) &&
+        config.get<IPAddress>(Config::ID::LOCAL_IP_ADDRESS).isSet()) {
+
         rc = network.connect_w_tmo(Type::FAST, 8);
     }
 #endif
+
     if (rc != Network::Status::CONNECTED) {
         rc = network.connect_w_tmo(Type::SLOW, 20);
     }

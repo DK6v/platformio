@@ -14,12 +14,13 @@
 
 #define TIME_INVALID        0
 #define MAX_ACTIVE_TIME     60
-#define MIN_SLEEP_TIME      60
+#define MIN_SLEEP_TIME      30
 #define MAX_SLEEP_TIME      3600
 #define DEFAULT_SLEEP_TIME  300
 
 using namespace app;
 
+volatile uint16_t g_restartCounter = 0;
 volatile uint16_t g_shutdownInterval = DEFAULT_SLEEP_TIME;
 volatile uint16_t g_shutdownTimeRound = 0;
 volatile uint32_t g_uptimeDurationMs = 0;
@@ -63,6 +64,9 @@ void onEvent(int size)
                     g_isShutdownEventRcvd = true;
                     g_isShutdownIntervalValid = false;
 
+                    g_shutdownInterval = DEFAULT_SLEEP_TIME;
+                    g_shutdownTimeRound = 0;
+
                     if (rbuf.getBit())
                     {
                         g_shutdownInterval = rbuf.getBits(15);
@@ -75,8 +79,8 @@ void onEvent(int size)
 
                     checksum = rbuf.getByte();
 
-                    if (checksum == BYTE_XOR('S', BYTE_XOR(BYTE16(g_shutdownInterval),
-                                                           BYTE16(g_shutdownTimeRound))))
+                    if (checksum == BYTE_XOR('S', BYTE16(g_shutdownInterval),
+                                                  BYTE16(g_shutdownTimeRound)))
                     {
                         g_isShutdownIntervalValid = true;
                     }
@@ -172,16 +176,16 @@ void onRequest()
         ptr->write(value);
     }, &Wire);
 
+    wbuf.setBytes(2, g_restartCounter);
     wbuf.setBytes(2, batteryVolts);
     wbuf.setBytes(2, calibration);
-    wbuf.setBytes(4, currentTime);
     wbuf.setBytes(4, g_uptimeDurationMs);
     wbuf.setBytes(1, g_connectionStatus);
     wbuf.setBytes(1, g_checksumBits);
 
-    wbuf.setByte(BYTE_XOR(BYTE16(batteryVolts),
+    wbuf.setByte(BYTE_XOR(BYTE16(g_restartCounter),
+                          BYTE16(batteryVolts),
                           BYTE16(calibration),
-                          BYTE32(currentTime),
                           BYTE32(g_uptimeDurationMs),
                           BYTE8(g_connectionStatus),
                           BYTE8(g_checksumBits)));
@@ -223,6 +227,8 @@ void loop()
     }
 
     powerPin.off();
+
+    g_restartCounter++;
     g_uptimeDurationMs = static_cast<uint32_t>(millis() - startTimeMs);
 
     pinMode(PB0, INPUT);
