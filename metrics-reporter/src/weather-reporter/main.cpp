@@ -340,8 +340,8 @@ void setup()
     app::StorageEeprom eeprom = app::StorageEeprom(128);
 
     Config &config = Config::getInstance()
-        .add<std::string>(Config::ID::WIFI_AP_NAME, "elbrus-wlan")
-        .add<std::string>(Config::ID::WIFI_AP_PASSWORD, "Peppa@Pig")
+        .add<std::string>(Config::ID::WIFI_AP_NAME, WIFI_NAME)
+        .add<std::string>(Config::ID::WIFI_AP_PASSWORD, WIFI_PASSWORD)
         .add<std::string>(Config::ID::SETUP_AP_NAME, "ESP8266")
         .add<std::string>(Config::ID::SETUP_AP_PASSWORD, "12345678")
         .add<IPAddress>(Config::ID::SETUP_AP_ADDRESS, IPAddress(192, 168, 0, 1))
