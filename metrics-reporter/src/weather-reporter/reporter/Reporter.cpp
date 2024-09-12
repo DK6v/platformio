@@ -28,7 +28,7 @@ void Reporter::addTag(const std::string &tag,
                            const std::string &value,
                            bool condition) {
     if (condition) {
-        mTags.push_back(std::make_tuple(tag, "\"" + value + "\""));
+        mTags.push_back(std::make_tuple(tag, value));
     }
 }
 
@@ -36,7 +36,7 @@ void Reporter::addField(const std::string &tag,
                              const std::string &value,
                              bool condition) {
     if (condition) {
-        mFields.push_back(std::make_tuple(tag, "\"" + value + "\""));
+        mFields.push_back(std::make_tuple(tag, value));
     }
 }
 
