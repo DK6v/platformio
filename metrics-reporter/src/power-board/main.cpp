@@ -234,7 +234,7 @@ void loop()
     pinMode(PB0, INPUT);
     pinMode(PB1, INPUT);
     pinMode(PB2, INPUT);
-    pinMode(PB3, INPUT);  
+    pinMode(PB3, INPUT);
 
     if (g_isShutdownIntervalValid == true)
     {

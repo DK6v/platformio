@@ -171,7 +171,7 @@ TEST(TestWatchdog, PowerDown004) {
     EXPECT_CALL(wd_mock, getCurrentTime()).WillOnce(Return(currentTimeSecs + timeShift));
     EXPECT_CALL(wd_mock, powerDown(intervalSecs - timeShift)).WillOnce(Return());
     wd_mock.powerDown(intervalSecs, roundSecs);
- 
+
     timeShift = roundSecs - 1;
     EXPECT_CALL(wd_mock, getCurrentTime()).WillOnce(Return(currentTimeSecs - timeShift));
     EXPECT_CALL(wd_mock, powerDown(intervalSecs - (roundSecs - timeShift))).WillOnce(Return());

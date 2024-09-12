@@ -28,7 +28,7 @@ void setup() {
 
 void loop() {
 
-    if (WiFi.status() == WL_CONNECTED) {  
+    if (WiFi.status() == WL_CONNECTED) {
         Serial.printf("WiFi RSSI:\t%d dBm\n", WiFi.RSSI());
     }
 

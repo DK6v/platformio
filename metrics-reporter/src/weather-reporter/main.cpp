@@ -6,19 +6,20 @@
 
 #include "Console.h"
 #include "Checksum.h"
-#include "config/Config.h"
 #include "Byte.h"
 #include "RBufferHelper.h"
 #include "WBufferHelper.h"
-#include "server/Controller.h"
-#include "server/view/View.h"
-#include "network/Network.h"
 #include "Timer.h"
 #include "TimeRFC868.h"
-#include "Reporter.h"
 #include "PinLed.h"
 #include "PinBme280.h"
 #include "PinBh1750.h"
+
+#include "config/Config.h"
+#include "reporter/InfluxReporter.h"
+#include "network/Network.h"
+#include "server/Controller.h"
+#include "server/view/View.h"
 
 #define I2C_ADDR 0x0A
 
@@ -39,7 +40,6 @@ using namespace app;
 ESP8266WebServer server;
 app::Controller controler = app::Controller(&server);
 
-app::Reporter reporter("192.168.0.5", 42001);
 app::TimeRFC868 timeRfc868("192.168.0.5", 37);
 app::PinBme280 bme(PIN_SDA, PIN_SCL);
 app::PinBH1750 light(PIN_SDA, PIN_SCL);
@@ -151,181 +151,87 @@ void sendReport()
     g_pm.lightSensorCompleteTimeMs = millis();
     g_pm.sensorsCompleteTimeMs = millis();
 
-    if (!std::isnan(bme.temperature))
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "temp=";
-        fields += std::to_string(ROUNDF(bme.temperature, 2));
-    }
-
-    if (!std::isnan(bme.pressure))
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "pressure=";
-        fields += std::to_string(ROUNDF(bme.pressure, 2));
-    }
-
-    if (!std::isnan(bme.humidity))
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "humidity=";
-        fields += std::to_string(ROUNDF(bme.humidity, 2));
-    }
-
-    if (!std::isnan(light.lightLevel))
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "light=";
-        fields += std::to_string(ROUNDF(light.lightLevel, 2));
-    }
-
-    if (g_pm.batteryVolts != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "battery=";
-        fields += std::to_string(ROUNDF(g_pm.batteryVolts / 1000.0, 2));
-    }
-
-    if (WiFi.isConnected())
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "rssi=";
-        fields += std::to_string(WiFi.RSSI());
-    }
-
-    if (g_pm.calibration != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "calibration=";
-        fields += std::to_string(g_pm.calibration / 100.0);
-    }
-
-    if (g_pm.lastOperationTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "lastOperationTimeMs=";
-        fields += std::to_string(g_pm.lastOperationTimeMs);
-    }
-
-    if (g_pm.lastConnectionStatus != Network::Status::UNDEFINED)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "lastConnStatus=";
-        fields += std::to_string(static_cast<uint8_t>(g_pm.lastConnectionStatus));
-    }
-
-    if (g_pm.connStartTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "connStartTimeMs=";
-        fields += std::to_string(g_pm.connStartTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.connCompleteTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "connCompleteTimeMs=";
-        fields += std::to_string(g_pm.connCompleteTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.connectionStatus != Network::Status::UNDEFINED)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "connStatus=";
-        fields += std::to_string(static_cast<uint8_t>(g_pm.connectionStatus));
-    }
-
-    if (g_pm.metricsStartTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "metricsStartTimeMs=";
-        fields += std::to_string(g_pm.metricsStartTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.metricsCompleteTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "metricsCompleteTimeMs=";
-        fields += std::to_string(g_pm.metricsCompleteTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.sensorsStartTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "sensorsStartTimeMs=";
-        fields += std::to_string(g_pm.sensorsStartTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.sensorsCompleteTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "sensorsCompleteTimeMs=";
-        fields += std::to_string(g_pm.sensorsCompleteTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.bmeSensorStartTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "bmeSensorStartTimeMs=";
-        fields += std::to_string(g_pm.bmeSensorStartTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.bmeSensorCompleteTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "bmeSensorCompleteTimeMs=";
-        fields += std::to_string(g_pm.bmeSensorCompleteTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.lightSensorStartTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "lightSensorStartTimeMs=";
-        fields += std::to_string(g_pm.lightSensorStartTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.lightSensorCompleteTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "lightSensorCompleteTimeMs=";
-        fields += std::to_string(g_pm.lightSensorCompleteTimeMs - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.powerOnTimeMs != 0)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "timeToReportMs=";
-        fields += std::to_string(millis() - g_pm.powerOnTimeMs);
-    }
-
-    if (g_pm.checksumBits != 0xFF)
-    {
-        fields += (fields.length() != 0) ? "," : "";
-        fields += "checksumBits=";
-        fields += std::to_string(g_pm.checksumBits);
-    }
-
-    fields += (fields.length() != 0) ? "," : "";
-    fields += "restartCounter=";
-    fields += std::to_string(g_pm.restartCounter);
+    auto client = WiFiClient();
+    auto metric = InfluxReporter(SERVER_ADDRESS, SERVER_PORT);
+    metric.create(REPORT_NAME);
+    metric.addTag("sensor", SENSOR_NAME);
+    metric.addField("temp",
+                    ROUNDF(bme.temperature, 2),
+                    (!std::isnan(bme.temperature)));
+    metric.addField("pressure",
+                    ROUNDF(bme.pressure, 2),
+                    (!std::isnan(bme.pressure)));
+    metric.addField("humidity",
+                    ROUNDF(bme.humidity, 2),
+                    (!std::isnan(bme.humidity)));
+    metric.addField("light",
+                    ROUNDF(light.lightLevel, 2),
+                    (!std::isnan(light.lightLevel)));
+    metric.addField("battery",
+                    ROUNDF(g_pm.batteryVolts / 1000.0, 2),
+                    (g_pm.batteryVolts != 0));
+    metric.addField("rssi",
+                    WiFi.RSSI(),
+                    WiFi.isConnected());
+    metric.addField("calibration",
+                    ROUNDF(g_pm.calibration / 100.0, 2),
+                    (g_pm.calibration != 0));
+    metric.addField("connStartTimeMs",
+                    (g_pm.connStartTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.connStartTimeMs != 0));
+    metric.addField("connCompleteTimeMs",
+                    (g_pm.connCompleteTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.connCompleteTimeMs != 0));
+    metric.addField("connStatus",
+                    static_cast<uint8_t>(g_pm.connectionStatus),
+                    (g_pm.connectionStatus != Network::Status::UNDEFINED));
+    metric.addField("lastOperationTimeMs",
+                    g_pm.lastOperationTimeMs,
+                    (g_pm.lastOperationTimeMs != 0));
+    metric.addField("lastConnStatus",
+                    static_cast<uint8_t>(g_pm.lastConnectionStatus),
+                    (g_pm.lastConnectionStatus != Network::Status::UNDEFINED));
+    metric.addField("metricsStartTimeMs",
+                    (g_pm.metricsStartTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.metricsStartTimeMs != 0));
+    metric.addField("metricsCompleteTimeMs",
+                    (g_pm.metricsCompleteTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.metricsCompleteTimeMs != 0));
+    metric.addField("sensorsStartTimeMs",
+                    (g_pm.sensorsStartTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.sensorsStartTimeMs != 0));
+    metric.addField("sensorsCompleteTimeMs",
+                    (g_pm.sensorsCompleteTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.sensorsCompleteTimeMs != 0));
+    metric.addField("bmeSensorStartTimeMs",
+                    (g_pm.bmeSensorStartTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.bmeSensorStartTimeMs != 0));
+    metric.addField("bmeSensorCompleteTimeMs",
+                    (g_pm.bmeSensorCompleteTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.bmeSensorCompleteTimeMs != 0));
+    metric.addField("lightSensorStartTimeMs",
+                    (g_pm.lightSensorStartTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.lightSensorStartTimeMs != 0));
+    metric.addField("lightSensorCompleteTimeMs",
+                    (g_pm.lightSensorCompleteTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.lightSensorCompleteTimeMs != 0));
+    metric.addField("timeToReportMs",
+                    (millis() - g_pm.powerOnTimeMs),
+                    (g_pm.powerOnTimeMs != 0));
+    metric.addField("checksumBits",
+                    g_pm.checksumBits,
+                    (g_pm.checksumBits != 0xFF));
+    metric.addField("restartCounter",
+                    g_pm.restartCounter);
 
 #ifdef BUILD_DEBUG
-    fields += (fields.length() != 0) ? "," : "";
-    fields += "debug=true";
+    metric.addField("debug", "true");
 #endif
 
-    if (WiFi.isConnected() && !fields.empty())
-    {
-        std::string header = std::string(REPORT_NAME ",sensor=" SENSOR_NAME " ");
-
-        if (currentTime != TIME_INVALID)
-        {
-            fields += (fields.length() != 0) ? " " : "";
-            fields += std::to_string(currentTime) + "000000000" /* ns */;
-        }
-
-        console.log("Send: %s", (header + fields).c_str());
-        reporter.send(header + fields);
+    if (currentTime != TIME_INVALID) {
+        metric.send(client, currentTime);
+    } else {
+        metric.send(client);
     }
 }
 

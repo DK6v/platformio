@@ -194,7 +194,7 @@ namespace app {
             powerDown(timeout);
             return timeout;
         }
-    
+
         return 0;
     }
 
