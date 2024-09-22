@@ -29,13 +29,21 @@ public:
              typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
     void addTag(const std::string &tag,
                      const T &value,
-                     bool condition = true);
+                     bool condition = true) {
+        if (condition) {
+            mTags.push_back(std::make_tuple(tag, std::to_string(value)));
+        }
+    }
 
     template<typename T,
              typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
     void addField(const std::string &tag,
                        const T &value,
-                       bool condition = true);
+                       bool condition = true) {
+        if (condition) {
+            mFields.push_back(std::make_tuple(tag, std::to_string(value)));
+        }
+    }
 
     virtual size_t send(Client &client, uint32_t timestamp = 0) = 0;
 
@@ -50,21 +58,5 @@ protected:
     std::list<Metric> mTags = {};
     std::list<Metric> mFields = {};
 };
-
-template<typename T,
-         typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-void Reporter::addTag(const std::string &tag, const T &value, bool condition) {
-    if (condition) {
-        mTags.push_back(std::make_tuple(tag, std::to_string(value)));
-    }
-}
-
-template<typename T,
-         typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
-void Reporter::addField(const std::string &tag, const T &value, bool condition) {
-    if (condition) {
-        mFields.push_back(std::make_tuple(tag, std::to_string(value)));
-    }
-}
 
 } // namespace fm
