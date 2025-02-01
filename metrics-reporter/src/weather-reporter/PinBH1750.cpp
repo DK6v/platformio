@@ -1,6 +1,6 @@
 #include <Arduino.h>
 
-#include "PinBh1750.h"
+#include "PinBH1750.h"
 
 namespace app {
 

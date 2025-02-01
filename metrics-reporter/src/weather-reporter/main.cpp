@@ -12,8 +12,9 @@
 #include "Timer.h"
 #include "TimeRFC868.h"
 #include "PinLed.h"
-#include "PinBme280.h"
-#include "PinBh1750.h"
+#include "PinBME280.h"
+#include "PinSHT31.h"
+#include "PinBH1750.h"
 
 #include "config/Config.h"
 #include "reporter/InfluxReporter.h"
@@ -23,7 +24,7 @@
 
 #define I2C_ADDR 0x0A
 
-#ifdef BUILD_DEBUG
+#if BUILD_DEBUG
 #define REPORT_NAME         "test"
 #define SENSOR_NAME         "test"
 #define REPORT_INTERVAL     30
@@ -41,7 +42,8 @@ ESP8266WebServer server;
 app::Controller controler = app::Controller(&server);
 
 app::TimeRFC868 timeRfc868("192.168.0.5", 37);
-app::PinBme280 bme(PIN_SDA, PIN_SCL);
+app::PinBME280 bme(PIN_SDA, PIN_SCL);
+app::PinSHT31 sht(PIN_SDA, PIN_SCL);
 app::PinBH1750 light(PIN_SDA, PIN_SCL);
 
 app::PinLed pinLed(PIN_LED, true);
@@ -73,6 +75,8 @@ volatile struct PmCounters
     uint32_t sensorsCompleteTimeMs;
     uint32_t bmeSensorStartTimeMs;
     uint32_t bmeSensorCompleteTimeMs;
+    uint32_t shtSensorStartTimeMs;
+    uint32_t shtSensorCompleteTimeMs;
     uint32_t lightSensorStartTimeMs;
     uint32_t lightSensorCompleteTimeMs;
 
@@ -135,20 +139,25 @@ void sendReport()
     std::string fields;
 
     g_pm.sensorsStartTimeMs = millis();
-    g_pm.bmeSensorStartTimeMs = millis();
 
+    g_pm.bmeSensorStartTimeMs = millis();
     if (bme.begin(0x76)) {
         bme.read();
     }
-
     g_pm.bmeSensorCompleteTimeMs = millis();
-    g_pm.lightSensorStartTimeMs = millis();
 
+    g_pm.shtSensorStartTimeMs = millis();
+    if (sht.begin(0x44)) {
+        sht.read();
+    }
+    g_pm.shtSensorCompleteTimeMs = millis();
+
+    g_pm.lightSensorStartTimeMs = millis();
     if (light.begin(0x23)) {
         light.read();
     }
-
     g_pm.lightSensorCompleteTimeMs = millis();
+
     g_pm.sensorsCompleteTimeMs = millis();
 
     auto client = WiFiClient();
@@ -156,14 +165,20 @@ void sendReport()
     metric.create(REPORT_NAME);
     metric.addTag("sensor", SENSOR_NAME);
     metric.addField("temp",
+                    ROUNDF(sht.temperature, 2),
+                    (!std::isnan(sht.temperature)));
+    metric.addField("temp_2",
                     ROUNDF(bme.temperature, 2),
                     (!std::isnan(bme.temperature)));
+    metric.addField("humidity",
+                    ROUNDF(sht.humidity, 2),
+                    (!std::isnan(sht.humidity)));
+    metric.addField("humidity_2",
+                    ROUNDF(bme.humidity, 2),
+                    (!std::isnan(bme.humidity)));
     metric.addField("pressure",
                     ROUNDF(bme.pressure, 2),
                     (!std::isnan(bme.pressure)));
-    metric.addField("humidity",
-                    ROUNDF(bme.humidity, 2),
-                    (!std::isnan(bme.humidity)));
     metric.addField("light",
                     ROUNDF(light.lightLevel, 2),
                     (!std::isnan(light.lightLevel)));
@@ -209,6 +224,12 @@ void sendReport()
     metric.addField("bmeSensorCompleteTimeMs",
                     (g_pm.bmeSensorCompleteTimeMs - g_pm.powerOnTimeMs),
                     (g_pm.bmeSensorCompleteTimeMs != 0));
+    metric.addField("shtSensorStartTimeMs",
+                    (g_pm.shtSensorStartTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.shtSensorStartTimeMs != 0));
+    metric.addField("shtSensorCompleteTimeMs",
+                    (g_pm.shtSensorCompleteTimeMs - g_pm.powerOnTimeMs),
+                    (g_pm.shtSensorCompleteTimeMs != 0));
     metric.addField("lightSensorStartTimeMs",
                     (g_pm.lightSensorStartTimeMs - g_pm.powerOnTimeMs),
                     (g_pm.lightSensorStartTimeMs != 0));
@@ -223,10 +244,6 @@ void sendReport()
                     (g_pm.checksumBits != 0xFF));
     metric.addField("restartCounter",
                     g_pm.restartCounter);
-
-#ifdef BUILD_DEBUG
-    metric.addField("debug", "true");
-#endif
 
     if (currentTime != TIME_INVALID) {
         metric.send(client, currentTime);

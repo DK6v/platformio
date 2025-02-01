@@ -1,12 +1,12 @@
 #include <Arduino.h>
 
-#include "PinBme280.h"
+#include "PinBME280.h"
 
 namespace app {
 
 // -------------------------------------------------------
 
-PinBme280::PinBme280(uint8_t sda, uint8_t scl)
+PinBME280::PinBME280(uint8_t sda, uint8_t scl)
     : mSdaPin(sda),
       mSclPin(scl),
       mAvailable(false),
@@ -15,7 +15,7 @@ PinBme280::PinBme280(uint8_t sda, uint8_t scl)
       humidity(NAN) {
 }
 
-bool PinBme280::begin(uint8_t address) {
+bool PinBME280::begin(uint8_t address) {
 
     Wire.begin(mSdaPin, mSclPin);
     mAvailable = mSensor.begin(address);
@@ -23,29 +23,29 @@ bool PinBme280::begin(uint8_t address) {
     return mAvailable;
 }
 
-void PinBme280::read() {
+void PinBME280::read() {
 
     readTemperature();
     readPressure();
     readHumidity();
 }
 
-float PinBme280::readTemperature() {
+float PinBME280::readTemperature() {
     temperature = mSensor.readTemperature();
     return temperature;
 }
 
-float PinBme280::readPressure() {
+float PinBME280::readPressure() {
     pressure = mSensor.readPressure();
     return pressure;
 }
 
-float PinBme280::readHumidity() {
+float PinBME280::readHumidity() {
     humidity = mSensor.readHumidity();
     return humidity;
 }
 
-bool PinBme280::available() const {
+bool PinBME280::available() const {
     return mAvailable;
 }
 
